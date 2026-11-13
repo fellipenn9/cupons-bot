@@ -3,260 +3,470 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f1720">
+  <meta name="theme-color" content="#14161b">
   <title>Caçador de Ofertas</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23ea580c'/><path d='M9 9h8l7 7-8 8-7-7z' fill='white'/><circle cx='13' cy='13' r='1.8' fill='%23ea580c'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f4f6f8; --surface: #ffffff; --surface-2: #eef1f4; --text: #18202a; --muted: #5d6b7a;
-      --border: #dde3e9; --accent: #e8590c; --accent-text: #ffffff; --good: #1a7f37; --good-bg: #e3f4e8;
-      --warn: #9a6700; --warn-bg: #fff4d6; --bad: #c62828; --bad-bg: #fde8e8; --radius: 14px;
-      --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+      --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f3f4f6; --surface-3: #e9ebef;
+      --text: #111827; --text-2: #374151; --muted: #6b7280; --border: #e5e7eb; --border-strong: #d1d5db;
+      --brand: #ea580c; --brand-hover: #c2410c; --brand-soft: #fff1e6; --brand-text: #ffffff;
+      --topbar: #14161b; --topbar-2: #1f232b; --topbar-text: #f9fafb; --topbar-muted: #9ca3af;
+      --good: #15803d; --good-bg: #dcfce7; --deal: #16a34a;
+      --warn: #a16207; --warn-bg: #fef3c7; --bad: #b91c1c; --bad-bg: #fee2e2;
+      --radius: 12px; --radius-sm: 8px;
+      --shadow-sm: 0 1px 2px rgba(17, 24, 39, .06);
+      --shadow: 0 1px 3px rgba(17, 24, 39, .08), 0 1px 2px rgba(17, 24, 39, .04);
+      --shadow-lg: 0 10px 25px -5px rgba(17, 24, 39, .12), 0 8px 10px -6px rgba(17, 24, 39, .08);
+      --img-bg: #ffffff;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0f1720; --surface: #17212c; --surface-2: #1f2b38; --text: #e8edf2; --muted: #93a3b4;
-        --border: #2a3846; --accent: #ff7a2f; --accent-text: #1a0d04; --good: #4cc276; --good-bg: #133222;
-        --warn: #e3b341; --warn-bg: #33290f; --bad: #ff6b6b; --bad-bg: #3a1717; --shadow: none;
+        --bg: #0d0f13; --surface: #171a21; --surface-2: #1d212a; --surface-3: #262b36;
+        --text: #f3f4f6; --text-2: #d1d5db; --muted: #9ca3af; --border: #2a2f3a; --border-strong: #3a404d;
+        --brand: #f97316; --brand-hover: #fb923c; --brand-soft: #2b1a0e; --brand-text: #1a0d04;
+        --topbar: #0a0b0e; --topbar-2: #1a1d24;
+        --good: #4ade80; --good-bg: #0f2a1a; --deal: #22c55e;
+        --warn: #fbbf24; --warn-bg: #2d240b; --bad: #f87171; --bad-bg: #331616;
+        --shadow-sm: none; --shadow: none; --shadow-lg: 0 10px 30px rgba(0, 0, 0, .5);
+        --img-bg: #ffffff;
       }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-    button, input { font: inherit; color: inherit; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+    button, input, select { font: inherit; color: inherit; }
     a { color: inherit; }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 48px; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
-    header h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
-    header h1 span { color: var(--accent); }
-    .user { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
-    .user img { width: 30px; height: 30px; border-radius: 50%; }
-    .btn { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
-    .btn:hover { background: var(--surface-2); }
-    .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-    .btn-primary:hover { filter: brightness(1.06); background: var(--accent); }
-    .btn:disabled { opacity: .6; cursor: default; }
-    .btn-link { border: 0; background: none; padding: 4px 6px; color: var(--muted); cursor: pointer; font-size: 13px; text-decoration: underline; }
-    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
-    .login { text-align: center; padding: 48px 20px; margin-top: 40px; }
-    .login p { color: var(--muted); }
-    .add h2 { margin: 0 0 4px; font-size: 16px; }
-    .add .hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
-    .add form { display: grid; grid-template-columns: 1fr 150px auto; gap: 10px; }
-    .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-    .field input { border: 1px solid var(--border); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-size: 15px; width: 100%; }
-    .field input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-    .add .btn-primary { align-self: end; height: 41px; }
-    .stores { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 12px; }
-    .chip { border-radius: 999px; padding: 2px 10px; background: var(--surface-2); color: var(--muted); }
-    .chip.on { background: var(--good-bg); color: var(--good); font-weight: 600; }
-    .list-head { display: flex; justify-content: space-between; align-items: baseline; margin: 24px 2px 10px; }
-    .list-head h2 { margin: 0; font-size: 16px; }
-    .list-head small { color: var(--muted); }
-    .list { display: grid; gap: 12px; }
-    .card { display: grid; grid-template-columns: 84px 1fr; gap: 14px; }
-    .thumb { width: 84px; height: 84px; border-radius: 10px; background: var(--surface-2) center/contain no-repeat; }
-    .card-top { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
-    .card h3 { margin: 0; font-size: 14px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .store { font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .prices { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 6px 0 4px; }
-    .price { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
-    .sub { color: var(--muted); font-size: 13px; }
-    .sub s { opacity: .8; }
-    .status { display: inline-block; border-radius: 8px; padding: 3px 9px; font-size: 12px; font-weight: 600; margin: 2px 0 6px; }
-    .status.ok { background: var(--good-bg); color: var(--good); }
-    .status.wait { background: var(--surface-2); color: var(--muted); }
-    .status.gap { background: var(--warn-bg); color: var(--warn); }
-    .status.err { background: var(--bad-bg); color: var(--bad); }
-    .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
-    .spark { display: block; width: 100%; height: 44px; margin: 8px 0 2px; }
-    .spark .line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
-    .spark .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
-    .actions { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; margin-left: -6px; }
-    .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
-    .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-    .toast.err { background: var(--bad); color: #fff; }
-    dialog { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); padding: 20px; width: min(360px, calc(100% - 32px)); }
-    dialog::backdrop { background: rgba(0, 0, 0, .45); }
-    dialog h3 { margin: 0 0 12px; font-size: 16px; }
-    dialog .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-    .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
-    .tabs button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 7px 16px; cursor: pointer; color: var(--muted); }
-    .tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
-    .radar { margin-bottom: 12px; }
-    .radar h2 { margin: 0 0 4px; font-size: 16px; }
-    .radar .hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
-    code { background: var(--surface-2); border-radius: 5px; padding: 1px 5px; font-size: 12px; }
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-    .chips:empty::before { content: 'Nenhum ainda.'; color: var(--muted); font-size: 13px; }
-    .tag { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 14px; }
-    .tag a { text-decoration: none; }
-    .tag button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 16px; line-height: 1; padding: 0 4px; border-radius: 50%; }
-    .tag button:hover { color: var(--bad); }
-    .inline-form { display: flex; gap: 8px; }
-    .inline-form input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-size: 15px; }
-    .inline-form select { border: 1px solid var(--border); background: var(--bg); color: inherit; border-radius: 10px; padding: 9px 8px; font-size: 15px; }
-    .inline-form input:focus, .inline-form select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-    .coupon-stores { margin: 12px 0 0; }
-    .coupon-stores:empty::before { content: none; }
-    .filter { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--muted); }
-    .filter[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-    .coupon { display: grid; gap: 6px; }
-    .coupon-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-    .code { font: 700 18px/1.2 ui-monospace, 'Cascadia Code', Consolas, monospace; letter-spacing: .03em; background: var(--surface-2); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 10px; }
-    .tabs { flex-wrap: wrap; }
-    .result { display: grid; grid-template-columns: auto 64px 1fr; gap: 12px; align-items: start; }
-    .result.dim { opacity: .55; }
-    .result input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
-    .result .thumb { width: 64px; height: 64px; }
-    .badge { display: inline-block; font-size: 11px; border-radius: 999px; padding: 1px 8px; background: var(--surface-2); color: var(--muted); }
-    .badge.best { background: var(--good-bg); color: var(--good); font-weight: 600; }
-    .selection-bar { position: sticky; bottom: 12px; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-top: 12px; border-color: var(--accent); }
-    .selection-bar .field { flex: 1 1 140px; }
-    .search-errors { margin: 8px 0 0; color: var(--warn); font-size: 13px; }
-    .group { font-size: 12px; color: var(--muted); }
-    .coupon p { margin: 0; color: var(--muted); font-size: 13px; }
+    img { display: block; max-width: 100%; }
     [hidden] { display: none !important; }
-    @media (max-width: 600px) {
-      .add form { grid-template-columns: 1fr 1fr; }
-      .add form .field:first-child { grid-column: 1 / -1; }
-      .card { grid-template-columns: 64px 1fr; gap: 12px; }
-      .thumb { width: 64px; height: 64px; }
+    .container { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+
+    /* ---------- topo ---------- */
+    .topbar { position: sticky; top: 0; z-index: 20; background: var(--topbar); color: var(--topbar-text); }
+    .topbar-row { display: flex; align-items: center; gap: 20px; height: 68px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -.02em; white-space: nowrap; text-decoration: none; }
+    .logo-mark { width: 34px; height: 34px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; }
+    .logo b { color: var(--brand); font-weight: 800; }
+    .searchbar { flex: 1; display: flex; max-width: 680px; height: 44px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px transparent; transition: box-shadow .15s; }
+    .searchbar:focus-within { box-shadow: 0 0 0 3px var(--brand); }
+    .searchbar input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 0 14px; font-size: 15px; color: #111827; background: transparent; }
+    .searchbar input::-webkit-search-cancel-button { display: none; }
+    .searchbar .clear { border: 0; background: none; color: #6b7280; width: 38px; cursor: pointer; font-size: 20px; line-height: 1; }
+    .searchbar .clear:hover { color: #111827; }
+    .searchbar .go { border: 0; background: var(--brand); color: #fff; padding: 0 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .searchbar .go:hover { background: var(--brand-hover); }
+    .searchbar .go:disabled { opacity: .7; cursor: progress; }
+    .user { display: flex; align-items: center; gap: 10px; margin-left: auto; font-size: 13px; color: var(--topbar-muted); white-space: nowrap; }
+    .user img { width: 32px; height: 32px; border-radius: 50%; }
+    .user button { border: 1px solid var(--topbar-2); background: var(--topbar-2); color: var(--topbar-text); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+    .user button:hover { border-color: var(--topbar-muted); }
+    .navbar { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 68px; z-index: 19; }
+    .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs button { border: 0; background: none; padding: 14px 14px 12px; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 14px; border-bottom: 2px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+    .tabs button:hover { color: var(--text); }
+    .tabs button[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+    .count { background: var(--surface-3); color: var(--text-2); border-radius: 999px; font-size: 11px; padding: 1px 7px; font-weight: 700; }
+    .tabs button[aria-selected="true"] .count { background: var(--brand-soft); color: var(--brand); }
+
+    main.container { padding-top: 24px; padding-bottom: 120px; }
+    .page-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 16px; margin-bottom: 16px; }
+    .page-head h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+    .page-head p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; margin: 36px 0 12px; }
+    .section-title h2 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+    .section-title small { color: var(--muted); font-size: 13px; }
+
+    /* ---------- base ---------- */
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px; }
+    .panel h2 { margin: 0 0 4px; font-size: 16px; }
+    .hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: var(--radius-sm); padding: 9px 14px; cursor: pointer; font-weight: 600; font-size: 14px; text-decoration: none; white-space: nowrap; }
+    .btn:hover { background: var(--surface-2); }
+    .btn-primary { background: var(--brand); border-color: var(--brand); color: var(--brand-text); }
+    .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+    .btn-ghost { border-color: transparent; background: none; color: var(--muted); }
+    .btn-ghost:hover { color: var(--text); background: var(--surface-2); }
+    .btn-sm { padding: 6px 10px; font-size: 13px; }
+    .btn:disabled { opacity: .6; cursor: default; }
+    .btn-link { border: 0; background: none; padding: 4px 0; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; }
+    .btn-link:hover { color: var(--brand); text-decoration: underline; }
+    .btn-link.danger:hover { color: var(--bad); }
+    .field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .input, .field input, .inline-form input, .inline-form select, select.input { border: 1px solid var(--border-strong); background: var(--surface); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 15px; width: 100%; min-width: 0; }
+    .input:focus, .field input:focus, .inline-form input:focus, .inline-form select:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: transparent; }
+    .inline-form { display: flex; gap: 8px; }
+    .inline-form select { width: auto; }
+    code { background: var(--surface-3); border-radius: 5px; padding: 1px 6px; font-size: 12px; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; }
+    .empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+    .empty b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+
+    .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+    .pill.ok { background: var(--good-bg); color: var(--good); }
+    .pill.wait { background: var(--surface-3); color: var(--muted); }
+    .pill.gap { background: var(--warn-bg); color: var(--warn); }
+    .pill.err { background: var(--bad-bg); color: var(--bad); }
+    .chip-btn { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-2); display: inline-flex; gap: 6px; align-items: center; }
+    .chip-btn:hover { border-color: var(--brand); color: var(--brand); }
+    .chip-btn[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--surface); }
+    .chip-btn .n { opacity: .65; font-weight: 600; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chips.editable { margin-bottom: 14px; }
+    .chips.editable:empty::before { content: 'Nenhum ainda.'; color: var(--muted); font-size: 13px; }
+    .tag { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 5px 6px 5px 12px; font-size: 14px; font-weight: 500; }
+    .tag a { text-decoration: none; }
+    .tag a:hover { color: var(--brand); }
+    .tag button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 17px; line-height: 1; width: 22px; height: 22px; border-radius: 50%; }
+    .tag button:hover { color: var(--bad); background: var(--bad-bg); }
+
+    /* ---------- busca ---------- */
+    .hero { text-align: center; padding: 40px 20px; background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 100%); }
+    .hero h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.03em; }
+    .hero h1 em { font-style: normal; color: var(--brand); }
+    .hero p { margin: 0 auto 18px; color: var(--muted); max-width: 560px; }
+    .hero .chips { justify-content: center; }
+    .store-logos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 22px 0 6px; }
+    .store-logo { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--text-2); }
+    .store-logo.soon { font-weight: 500; color: var(--muted); border-style: dashed; background: none; }
+    .hero .tip { margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .hero-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 26px 0 10px; }
+
+    .results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .results-head h1 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+    .results-head h1 span { color: var(--muted); font-weight: 500; font-size: 14px; margin-left: 6px; }
+    .results-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .results-tools label.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+    .results-tools input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--brand); }
+    .results-tools select { padding: 7px 10px; font-size: 13px; width: auto; }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .notice { display: flex; gap: 8px; align-items: center; background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; margin-bottom: 14px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .pcard { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: box-shadow .15s, border-color .15s, transform .15s; }
+    .pcard:hover { box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
+    .pcard.selected { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand); }
+    .pcard.dim { opacity: .6; }
+    .pimg { position: relative; aspect-ratio: 1; background: var(--img-bg); border-bottom: 1px solid var(--border); }
+    .pimg img { width: 100%; height: 100%; object-fit: contain; padding: 14px; }
+    .pimg .noimg { width: 100%; height: 100%; display: grid; place-items: center; color: #9ca3af; font-size: 36px; }
+    .pbadges { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .badge { border-radius: 6px; padding: 3px 7px; font-size: 11px; font-weight: 700; letter-spacing: .01em; }
+    .badge.off { background: var(--deal); color: #fff; }
+    .badge.best { background: var(--brand); color: #fff; }
+    .badge.muted { background: rgba(17, 24, 39, .72); color: #fff; }
+    .pick { position: absolute; top: 8px; right: 8px; }
+    .pick input { position: absolute; opacity: 0; pointer-events: none; }
+    .pick label { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, .95); color: #374151; border: 1px solid #d1d5db; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-sm); }
+    .pick label:hover { border-color: var(--brand); color: var(--brand); }
+    .pick input:checked + label { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .pick input:focus-visible + label { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .pick input:disabled + label, .pick input:disabled:checked + label { cursor: default; background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+    .pbody { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; flex: 1; }
+    .pstore { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+    .pstore b { color: var(--text-2); font-weight: 700; }
+    .pstore span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ptitle { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.35; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+    .pprice { margin-top: auto; padding-top: 6px; }
+    .pprice s { display: block; color: var(--muted); font-size: 12px; }
+    .pprice .now { font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--text); line-height: 1.15; }
+    .pprice .how { font-size: 12px; color: var(--muted); }
+    .pprice .how b { color: var(--deal); font-weight: 700; }
+    .pprice .out { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .pcard .btn { margin-top: 10px; width: 100%; }
+
+    .selection-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30; width: min(920px, calc(100% - 24px)); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--topbar); color: var(--topbar-text); border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow-lg); }
+    .selection-bar .sel-info { font-size: 14px; font-weight: 600; margin-right: auto; }
+    .selection-bar .sel-info small { display: block; color: var(--topbar-muted); font-weight: 400; font-size: 12px; }
+    .selection-bar .money { display: flex; align-items: center; background: #fff; border-radius: var(--radius-sm); overflow: hidden; }
+    .selection-bar .money span { padding: 0 4px 0 10px; color: #6b7280; font-size: 14px; }
+    .selection-bar .money input { border: 0; outline: 0; width: 120px; padding: 9px 10px 9px 2px; color: #111827; background: #fff; }
+    .selection-bar .btn { border-color: var(--topbar-2); }
+    .selection-bar .btn:not(.btn-primary) { background: var(--topbar-2); color: var(--topbar-text); }
+    .selection-bar .btn:not(.btn-primary):hover { border-color: var(--topbar-muted); }
+
+    .alerts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .acard { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+    .acard-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+    .acard h3 { margin: 0; font-size: 15px; }
+    .acard .target { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .acard .best { display: flex; gap: 10px; align-items: center; text-decoration: none; }
+    .acard .best img { width: 48px; height: 48px; object-fit: contain; background: var(--img-bg); border-radius: 6px; border: 1px solid var(--border); padding: 3px; flex: none; }
+    .acard .best .now { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+    .acard .best .what { font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .acard .best:hover .what { color: var(--brand); }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-top: auto; padding-top: 4px; font-size: 12px; color: var(--muted); }
+    .row-actions .spacer { margin-left: auto; }
+    .acard .card-links { border-top: 1px solid var(--border); padding-top: 10px; margin-top: auto; }
+    .acard .when { font-size: 12px; color: var(--muted); margin-left: 8px; }
+
+    /* ---------- favoritos ---------- */
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px; min-width: 110px; }
+    .stat b { display: block; font-size: 20px; letter-spacing: -.02em; }
+    .stat span { font-size: 12px; color: var(--muted); }
+    .stat.good b { color: var(--good); }
+    details.add { margin-bottom: 18px; }
+    details.add summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 8px; }
+    details.add summary::-webkit-details-marker { display: none; }
+    details.add summary::before { content: '+'; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--brand-soft); color: var(--brand); font-weight: 800; }
+    details.add[open] summary::before { content: '−'; }
+    details.add summary small { color: var(--muted); font-weight: 400; font-size: 13px; }
+    .add-form { display: grid; grid-template-columns: 1fr 170px auto; gap: 12px; margin-top: 16px; align-items: end; }
+    .stores-line { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 12px; }
+    .stores-line span { border-radius: 999px; padding: 2px 10px; background: var(--surface-3); color: var(--muted); }
+    .stores-line span.on { background: var(--good-bg); color: var(--good); font-weight: 600; }
+    .fcard .pbody { gap: 8px; }
+    .fcard .group { font-size: 11px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: .04em; }
+    .fcard .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 12px; color: var(--muted); }
+    .fcard .facts b { color: var(--text-2); }
+    .error { font-size: 12px; color: var(--bad); }
+    .spark { display: block; width: 100%; height: 40px; margin: 2px 0; }
+    .spark .line { fill: none; stroke: var(--brand); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .spark .target { stroke: var(--good); stroke-dasharray: 4 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .card-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
+    .pcard .card-links .btn-link { padding: 2px 0; }
+
+    /* ---------- cupons ---------- */
+    .coupon-tools { display: grid; gap: 12px; margin-bottom: 18px; }
+    .coupon-tools .input { max-width: 520px; }
+    .coupons { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    .ticket { position: relative; display: grid; grid-template-columns: 1fr; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .ticket-code { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: var(--brand-soft); border-bottom: 2px dashed var(--border-strong); }
+    .ticket-code .code { font: 800 19px/1.2 ui-monospace, 'Cascadia Code', Consolas, monospace; letter-spacing: .04em; color: var(--brand); word-break: break-all; }
+    .ticket-code .store { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); }
+    .ticket-body { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ticket-body p { margin: 0; color: var(--text-2); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .ticket-code { position: relative; }
+    .ticket-code::before, .ticket-code::after { content: ''; position: absolute; bottom: -9px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); }
+    .ticket-code::before { left: -9px; }
+    .ticket-code::after { right: -9px; }
+
+    /* ---------- radar ---------- */
+    .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+    .settings .sub { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+
+    /* ---------- login, diálogo, aviso ---------- */
+    .login { max-width: 440px; margin: 64px auto; text-align: center; padding: 36px 28px; }
+    .login .logo-mark { width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 16px; }
+    .login h2 { font-size: 22px; letter-spacing: -.02em; margin: 0 0 8px; }
+    .login p { color: var(--muted); margin: 0 0 22px; }
+    .login .btn { width: 100%; padding: 12px; }
+    .login .err { color: var(--bad); font-size: 13px; margin: 12px 0 0; }
+    dialog { border: 0; border-radius: var(--radius); background: var(--surface); color: var(--text); padding: 22px; width: min(380px, calc(100% - 32px)); box-shadow: var(--shadow-lg); }
+    dialog::backdrop { background: rgba(0, 0, 0, .5); }
+    dialog h3 { margin: 0 0 14px; font-size: 17px; }
+    dialog .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .toast { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 50; background: var(--text); color: var(--surface); padding: 11px 18px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: calc(100% - 32px); box-shadow: var(--shadow-lg); }
+    .toast.err { background: var(--bad); color: #fff; }
+
+    @media (max-width: 760px) {
+      .topbar-row { flex-wrap: wrap; height: auto; padding: 10px 0; gap: 10px; }
+      .logo { font-size: 16px; }
+      .logo-mark { width: 30px; height: 30px; }
+      .searchbar { order: 3; flex-basis: 100%; max-width: none; }
+      .searchbar .go span { display: none; }
       .user span { display: none; }
+      .navbar { top: 0; position: relative; }
+      .hero { padding: 28px 16px; }
+      .hero h1 { font-size: 22px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .pbody { padding: 10px; }
+      .pprice .now { font-size: 18px; }
+      .pick label span { display: none; }
+      .add-form { grid-template-columns: 1fr 1fr; }
+      .add-form .field:first-child { grid-column: 1 / -1; }
+      .settings { grid-template-columns: 1fr; }
+      .coupons, .alerts { grid-template-columns: 1fr; }
+      .selection-bar .sel-info { flex-basis: 100%; }
+      .selection-bar .money { flex: 1 1 100%; }
+      .selection-bar .money input { width: 100%; }
+      .selection-bar .btn { flex: 1; }
+      .toast { top: auto; bottom: 20px; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>🏷️ Caçador de <span>Ofertas</span></h1>
+  <header class="topbar">
+    <div class="container topbar-row">
+      <a class="logo" href="#" id="logo-link" aria-label="Caçador de Ofertas — início">
+        <span class="logo-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" fill="#fff"/><circle cx="7.5" cy="7.5" r="1.6" fill="#ea580c"/></svg>
+        </span>
+        <span>Caçador de <b>Ofertas</b></span>
+      </a>
+
+      <form class="searchbar" id="search-form" role="search" novalidate hidden>
+        <input id="search-input" type="search" placeholder="Buscar produto em todas as lojas…" maxlength="80" aria-label="O que você procura" autocomplete="off">
+        <button class="clear" id="search-clear" type="button" aria-label="Limpar busca" hidden>×</button>
+        <button class="go" id="btn-search" type="submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span>Buscar</span>
+        </button>
+      </form>
+
       <div class="user" id="user-box" hidden>
         <img id="user-photo" alt="" referrerpolicy="no-referrer">
         <span id="user-name"></span>
-        <button class="btn-link" id="btn-logout" type="button">Sair</button>
+        <button id="btn-logout" type="button">Sair</button>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <section class="panel login" id="login-view" hidden>
-      <h2>Seus favoritos, de olho no preço</h2>
-      <p>Cole o link de um produto, diga quanto quer pagar e eu aviso no Telegram quando chegar lá.</p>
-      <button class="btn btn-primary" id="btn-login" type="button">Entrar com Google</button>
-      <p class="sub" id="login-error" role="alert"></p>
-    </section>
+  <nav class="navbar" id="navbar" hidden>
+    <div class="container tabs" role="tablist" aria-label="Seções">
+      <button type="button" role="tab" data-tab="search" aria-selected="true">Buscar e comparar</button>
+      <button type="button" role="tab" data-tab="favs" aria-selected="false">Favoritos <span class="count" id="count-favs" hidden></span></button>
+      <button type="button" role="tab" data-tab="coupons" aria-selected="false">Cupons <span class="count" id="count-coupons" hidden></span></button>
+      <button type="button" role="tab" data-tab="radar" aria-selected="false">Radar e alertas</button>
+    </div>
+  </nav>
 
-    <main id="app-view" hidden>
-      <nav class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="favs" aria-selected="true">⭐ Favoritos</button>
-        <button type="button" role="tab" data-tab="search" aria-selected="false">🔎 Buscar</button>
-        <button type="button" role="tab" data-tab="radar" aria-selected="false">🎯 Radar de ofertas</button>
-        <button type="button" role="tab" data-tab="coupons" aria-selected="false">🎟️ Cupons</button>
-      </nav>
+  <section class="panel login" id="login-view" hidden>
+    <div class="logo-mark" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" fill="#fff"/><circle cx="7.5" cy="7.5" r="1.6" fill="#ea580c"/></svg>
+    </div>
+    <h2>Caçador de Ofertas</h2>
+    <p>Compare preços entre lojas, acompanhe seus favoritos e receba no Telegram quando chegar no preço que você quer.</p>
+    <button class="btn btn-primary" id="btn-login" type="button">Entrar com Google</button>
+    <p class="err" id="login-error" role="alert"></p>
+  </section>
 
-      <div id="tab-coupons" hidden>
-        <section class="panel radar">
-          <h2>Cupons disponíveis</h2>
-          <p class="hint">Todo código de cupom que apareceu nos seus canais nos últimos 7 dias — de qualquer produto. Na hora de comprar, filtre pela loja ou busque pelo produto.
-            Cupom costuma expirar rápido: os mais recentes vêm primeiro.</p>
-          <div class="inline-form">
-            <input id="coupon-search" type="search" placeholder="Buscar: geladeira, pokemon, notebook…" aria-label="Buscar cupom">
+  <main class="container" id="app-view" hidden>
+
+    <!-- ===== Buscar ===== -->
+    <div id="tab-search">
+      <section class="panel hero" id="search-hero">
+        <h1>Compare preços em <em><span id="search-store-count"></span> lojas</em> de uma vez</h1>
+        <p>Digite o produto na barra lá em cima. Mostramos do mais barato para o mais caro, com o preço à vista no Pix.</p>
+        <div class="store-logos" id="search-stores"></div>
+        <div id="search-suggest-wrap" hidden>
+          <div class="hero-label">Buscas rápidas</div>
+          <div class="chips" id="search-suggest"></div>
+        </div>
+        <p class="tip">Dica: use <code>-palavra</code> para tirar o que não interessa, como <code>notebook -mochila -mesa</code>.</p>
+      </section>
+
+      <section id="search-results-wrap" hidden>
+        <div class="results-head">
+          <h1 id="search-title"></h1>
+          <div class="results-tools">
+            <label class="toggle"><input type="checkbox" id="search-only-relevant" checked> Esconder acessórios</label>
+            <select class="input" id="search-sort" aria-label="Ordenar">
+              <option value="price">Menor preço</option>
+              <option value="discount">Maior desconto</option>
+              <option value="price-desc">Maior preço</option>
+            </select>
+            <button class="btn btn-sm" type="button" id="search-reset">× Limpar busca</button>
           </div>
-          <div class="chips coupon-stores" id="coupon-stores" role="group" aria-label="Filtrar por loja"></div>
-        </section>
-        <div class="list" id="coupon-list" aria-live="polite"></div>
+        </div>
+        <div class="notice" id="search-errors" hidden></div>
+        <div class="filters" id="search-filters" role="group" aria-label="Filtrar por loja"></div>
+        <div class="grid" id="search-results" aria-live="polite"></div>
+      </section>
+
+      <form class="selection-bar" id="search-actions" hidden novalidate>
+        <div class="sel-info" id="sel-info"></div>
+        <label class="money"><span>R$</span><input id="search-target" inputmode="decimal" placeholder="Pagaria até" aria-label="Pagaria até (R$)"></label>
+        <button class="btn btn-primary" type="submit" id="btn-follow" data-mode="follow">Acompanhar marcados</button>
+        <button class="btn" type="submit" data-mode="alert">Alerta para esta busca</button>
+      </form>
+
+      <div class="section-title">
+        <h2>Meus alertas por busca</h2>
+        <small>conferidos em todas as lojas a cada 30 min</small>
+      </div>
+      <div class="alerts" id="search-alerts"></div>
+    </div>
+
+    <!-- ===== Favoritos ===== -->
+    <div id="tab-favs" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Meus favoritos</h1>
+          <p>Conferidos a cada 30 minutos. Aviso no Telegram quando chegam na sua meta.</p>
+        </div>
+        <div class="stats" id="list-info"></div>
       </div>
 
-      <div id="tab-search" hidden>
-        <section class="panel radar">
-          <h2>Comparar preços</h2>
-          <p class="hint">Busca ao mesmo tempo em <span id="search-stores"></span>. Use <code>-palavra</code> para tirar o que não interessa: <code>notebook -mochila -mesa</code>.</p>
-          <form class="inline-form" id="search-form" novalidate>
-            <input id="search-input" type="search" placeholder="Ex.: geladeira frost free, nintendo switch oled" maxlength="80" aria-label="O que você procura">
-            <button class="btn btn-primary" id="btn-search" type="submit">Buscar</button>
-          </form>
-          <label class="sub"><input type="checkbox" id="search-only-relevant" checked> Esconder acessórios e outros produtos</label>
-          <p class="search-errors" id="search-errors" hidden></p>
-        </section>
-
-        <div class="list-head" id="search-head" hidden>
-          <h2 id="search-title"></h2>
-          <small id="search-info"></small>
-        </div>
-        <div class="list" id="search-results" aria-live="polite"></div>
-
-        <form class="panel selection-bar" id="search-actions" hidden novalidate>
-          <label class="field">Pagaria até (R$)
-            <input id="search-target" inputmode="decimal" placeholder="Ex.: 2.500,00">
+      <details class="panel add" id="add-panel">
+        <summary>Adicionar produto pelo link <small>— ou marque produtos na busca</small></summary>
+        <form class="add-form" id="add-form" novalidate>
+          <label class="field">Link do produto
+            <input id="add-url" type="url" inputmode="url" placeholder="https://www.kabum.com.br/produto/..." required>
           </label>
-          <button class="btn btn-primary" type="submit" id="btn-follow" data-mode="follow">⭐ Acompanhar marcados</button>
-          <button class="btn" type="submit" data-mode="alert">🔔 Avisar quando qualquer loja tiver</button>
+          <label class="field">Pagaria até (R$)
+            <input id="add-target" inputmode="decimal" placeholder="899,90" required>
+          </label>
+          <button class="btn btn-primary" id="btn-add" type="submit">Adicionar</button>
         </form>
+        <div class="stores-line" id="stores"></div>
+      </details>
 
-        <div class="list-head">
-          <h2>Alertas por busca</h2>
-          <small>conferidos a cada 30 minutos</small>
+      <div class="grid" id="list" aria-live="polite"></div>
+    </div>
+
+    <!-- ===== Cupons ===== -->
+    <div id="tab-coupons" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Cupons dos seus canais</h1>
+          <p>Todo código que apareceu nos canais nos últimos 7 dias. Os mais recentes primeiro — cupom costuma acabar rápido.</p>
         </div>
-        <div class="list" id="search-alerts"></div>
       </div>
+      <div class="coupon-tools">
+        <input class="input" id="coupon-search" type="search" placeholder="Filtrar: geladeira, pokemon, notebook…" aria-label="Filtrar cupons">
+        <div class="filters" id="coupon-stores" role="group" aria-label="Filtrar por loja"></div>
+      </div>
+      <div class="coupons" id="coupon-list" aria-live="polite"></div>
+    </div>
 
-      <div id="tab-radar" hidden>
-        <section class="panel radar">
+    <!-- ===== Radar ===== -->
+    <div id="tab-radar" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Radar e alertas</h1>
+          <p>O que o robô vigia por você e avisa no Telegram.</p>
+        </div>
+      </div>
+      <div class="settings">
+        <section class="panel">
           <h2>Termos que me interessam</h2>
-          <p class="hint">Aviso no Telegram quando um post dos canais tiver <b>todas</b> as palavras do termo (sem ligar pra acento ou maiúscula).
-            Use <code>-palavra</code> para excluir: <code>nintendo -sorteio</code>.</p>
-          <div class="chips" id="terms"></div>
+          <p class="hint">Aviso quando um post dos canais tiver <b>todas</b> as palavras do termo (sem ligar pra acento ou maiúscula). Use <code>-palavra</code> para excluir: <code>nintendo -sorteio</code>.</p>
+          <div class="chips editable" id="terms"></div>
           <form class="inline-form" id="term-form" novalidate>
-            <input id="term-input" placeholder="Ex.: pokemon tcg, geladeira frost free, cupom amazon" maxlength="80" aria-label="Novo termo">
+            <input id="term-input" placeholder="Ex.: geladeira frost free" maxlength="80" aria-label="Novo termo">
             <button class="btn btn-primary" type="submit">Adicionar</button>
           </form>
         </section>
 
-        <section class="panel radar">
+        <section class="panel">
           <h2>Canais que eu acompanho</h2>
-          <p class="hint">Só canais <b>públicos</b> do Telegram (com @). Cole o link <code>t.me/…</code> ou o @. Grupos, canais privados e bots não funcionam.</p>
-          <div class="chips" id="channels"></div>
+          <p class="hint">Canais <b>públicos</b> do Telegram. Cole o link <code>t.me/…</code> ou o @. Grupos, canais privados e bots não funcionam.</p>
+          <div class="chips editable" id="channels"></div>
           <form class="inline-form" id="channel-form" novalidate>
             <input id="channel-input" placeholder="https://t.me/nomedocanal" aria-label="Novo canal">
             <button class="btn btn-primary" type="submit">Adicionar</button>
           </form>
-          <p class="sub">Os canais são lidos a cada 2 minutos. Canal novo começa a valer a partir dos próximos posts.</p>
+          <p class="sub">Lidos a cada 2 minutos. Canal novo vale a partir dos próximos posts.</p>
         </section>
 
-        <section class="panel radar">
+        <section class="panel">
           <h2>Novidades nas lojas</h2>
-          <p class="hint">Aviso quando aparecer um produto <b>novo</b> na busca da loja ou quando um esgotado <b>voltar ao estoque</b>. Ex.: COPAG + <code>pokemon</code>.</p>
-          <div class="chips" id="watches"></div>
+          <p class="hint">Aviso quando surgir um produto <b>novo</b> na busca da loja ou quando um esgotado <b>voltar ao estoque</b>. Ex.: COPAG + <code>pokemon</code>.</p>
+          <div class="chips editable" id="watches"></div>
           <form class="inline-form" id="watch-form" novalidate>
             <select id="watch-store" aria-label="Loja"></select>
             <input id="watch-term" placeholder="O que buscar na loja" maxlength="60" aria-label="Termo da busca">
             <button class="btn btn-primary" type="submit">Adicionar</button>
           </form>
-          <p class="sub">As lojas são consultadas a cada 10 minutos. Na primeira leitura eu só anoto o que já existe e confirmo no Telegram.</p>
+          <p class="sub">Consultadas a cada 10 minutos. Na primeira leitura só anoto o que já existe e confirmo no Telegram.</p>
         </section>
       </div>
-
-      <div id="tab-favs">
-      <section class="panel add">
-        <h2>Novo favorito</h2>
-        <p class="hint">Cole o link da página do produto e o preço que você topa pagar (à vista).</p>
-        <form id="add-form" novalidate>
-          <label class="field">Link do produto
-            <input id="add-url" type="url" inputmode="url" placeholder="https://www.kabum.com.br/produto/..." required>
-          </label>
-          <label class="field">Pagaria até (R$)
-            <input id="add-target" inputmode="decimal" placeholder="Ex.: 899,90" required>
-          </label>
-          <button class="btn btn-primary" id="btn-add" type="submit">Adicionar</button>
-        </form>
-        <div class="stores" id="stores"></div>
-      </section>
-
-      <div class="list-head">
-        <h2>Favoritos</h2>
-        <small id="list-info"></small>
-      </div>
-      <div class="list" id="list" aria-live="polite"></div>
-      </div>
-    </main>
-  </div>
+    </div>
+  </main>
 
   <dialog id="target-dialog">
     <form method="dialog" id="target-form">
@@ -265,7 +475,7 @@
         <input id="target-input" inputmode="decimal" required>
       </label>
       <div class="row">
-        <button class="btn" value="cancel" formnovalidate>Cancelar</button>
+        <button class="btn btn-ghost" value="cancel" formnovalidate>Cancelar</button>
         <button class="btn btn-primary" value="save">Salvar</button>
       </div>
     </form>

@@ -45,7 +45,6 @@ const state = {
   unsubscribe: null,
   editingId: null,
   editingKind: 'favorites',
-  search: { term: '', results: [], errors: [], selected: new Set(), loading: false },
   searchAlerts: [],
   searchAlertsUnsubscribe: null,
   radar: { terms: [], channels: [] },
@@ -106,6 +105,8 @@ auth.onAuthStateChanged((user) => {
   $('login-view').hidden = !!user;
   $('app-view').hidden = !user;
   $('user-box').hidden = !user;
+  $('navbar').hidden = !user;
+  $('search-form').hidden = !user;
   if (state.unsubscribe) state.unsubscribe();
   for (const key of ['unsubscribe', 'radarUnsubscribe', 'couponsUnsubscribe', 'watchesUnsubscribe', 'searchAlertsUnsubscribe']) {
     if (state[key]) state[key]();
@@ -123,15 +124,24 @@ auth.onAuthStateChanged((user) => {
 });
 
 // ---------- abas ----------
-document.querySelectorAll('.tabs button').forEach((tab) =>
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tabs button').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
-    $('tab-favs').hidden = tab.dataset.tab !== 'favs';
-    $('tab-radar').hidden = tab.dataset.tab !== 'radar';
-    $('tab-search').hidden = tab.dataset.tab !== 'search';
-    $('tab-coupons').hidden = tab.dataset.tab !== 'coupons';
-  }),
-);
+function showTab(name) {
+  document.querySelectorAll('.tabs [data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+  for (const id of ['search', 'favs', 'coupons', 'radar']) $(`tab-${id}`).hidden = id !== name;
+  window.scrollTo({ top: 0 });
+}
+
+document.querySelectorAll('.tabs [data-tab]').forEach((tab) => tab.addEventListener('click', () => showTab(tab.dataset.tab)));
+
+$('logo-link').addEventListener('click', (ev) => {
+  ev.preventDefault();
+  clearSearch();
+  showTab('search');
+});
+
+function setCount(id, n) {
+  $(id).textContent = n;
+  $(id).hidden = !n;
+}
 
 // ---------- cupons ----------
 function listenCoupons() {
@@ -160,11 +170,12 @@ function filteredCoupons() {
 }
 
 function renderCoupons() {
+  setCount('count-coupons', state.coupons.length);
   const stores = [...new Set(state.coupons.map((c) => c.store))].sort();
   $('coupon-stores').innerHTML = ['', ...stores]
     .map((s) => {
       const count = s ? state.coupons.filter((c) => c.store === s).length : state.coupons.length;
-      return `<button type="button" class="filter" data-store="${escapeHtml(s)}" aria-pressed="${String((state.couponStore || '') === s)}">${escapeHtml(s || 'Todas')} (${count})</button>`;
+      return `<button type="button" class="chip-btn" data-store="${escapeHtml(s)}" aria-pressed="${String((state.couponStore || '') === s)}">${escapeHtml(s || 'Todas as lojas')} <span class="n">${count}</span></button>`;
     })
     .join('');
 
@@ -172,22 +183,26 @@ function renderCoupons() {
   $('coupon-list').innerHTML = list.length
     ? list
         .map(
-          (c) => `<article class="panel coupon">
-            <div class="coupon-head">
-              <span class="code">${escapeHtml(c.code)}</span>
-              <button class="btn" type="button" data-copy="${escapeHtml(c.code)}">Copiar</button>
-              <span class="store">${escapeHtml(c.store)}</span>
+          (c) => `<article class="ticket">
+            <div class="ticket-code">
+              <div>
+                <div class="store">${escapeHtml(c.store)}</div>
+                <div class="code">${escapeHtml(c.code)}</div>
+              </div>
+              <button class="btn btn-primary btn-sm" type="button" data-copy="${escapeHtml(c.code)}">Copiar</button>
             </div>
-            <p>${escapeHtml(c.text)}</p>
-            <div class="meta">
-              <span>Visto ${timeAgo(c.lastSeen)}${c.seenCount > 1 ? ` · ${c.seenCount}× nos canais` : ''}</span>
-              <span>${escapeHtml(c.channel)}</span>
-              <a class="btn-link" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">Ver o post</a>
+            <div class="ticket-body">
+              <p>${escapeHtml(c.text)}</p>
+              <div class="row-actions">
+                <span>Visto ${timeAgo(c.lastSeen)}${c.seenCount > 1 ? ` · ${c.seenCount}× nos canais` : ''}</span>
+                <span>${escapeHtml(c.channel)}</span>
+                <a class="btn-link spacer" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">Ver o post ↗</a>
+              </div>
             </div>
           </article>`,
         )
         .join('')
-    : `<p class="panel empty">${state.coupons.length ? 'Nenhum cupom com esse filtro.' : 'Nenhum cupom ainda — eles aparecem conforme os canais postam.'}</p>`;
+    : `<div class="panel empty" style="grid-column:1/-1">${state.coupons.length ? '<b>Nenhum cupom com esse filtro</b>Tente outra palavra ou outra loja.' : '<b>Nenhum cupom ainda</b>Eles aparecem aqui conforme os canais postam.'}</div>`;
 }
 
 $('coupon-search').addEventListener('input', renderCoupons);
@@ -220,6 +235,7 @@ function listenRadar() {
       const data = snap.data() || {};
       state.radar = { terms: data.terms || [], channels: data.channels || [] };
       renderRadar();
+      if (!state.search.term) renderSuggestions();
     },
     (err) => {
       console.error('Erro ao ler o radar:', err);
@@ -466,14 +482,23 @@ $('target-dialog').addEventListener('close', async () => {
 });
 
 // ---------- busca em várias lojas ----------
-$('search-stores').textContent = STORES.map((s) => s.name).join(', ');
 const storeName = (id) => STORES.find((s) => s.id === id)?.name || id;
+const emptySearch = () => ({ term: '', results: [], errors: [], selected: new Set(), loading: false, store: null, sort: 'price' });
+state.search = emptySearch();
 
-$('search-form').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const term = $('search-input').value.replace(/\s+/g, ' ').trim();
-  if (term.length < 2) return toast('Digite o que você procura.', true);
-  state.search = { term, results: [], errors: [], selected: new Set(), loading: true };
+$('search-store-count').textContent = STORES.length;
+$('search-stores').innerHTML =
+  STORES.map((s) => `<span class="store-logo">${escapeHtml(s.name)}</span>`).join('') +
+  COMING_SOON.map((c) => `<span class="store-logo soon" title="Ainda não liberada">${escapeHtml(c.name)} · em breve</span>`).join('');
+
+const discountOf = (r) => (r.listPrice > r.price ? Math.round((1 - r.price / r.listPrice) * 100) : 0);
+const productImage = (src, alt = '') =>
+  src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" referrerpolicy="no-referrer">` : '<div class="noimg" aria-hidden="true">🛍️</div>';
+
+async function runSearch(term) {
+  state.search = { ...emptySearch(), term, loading: true, sort: $('search-sort').value };
+  $('search-input').value = term;
+  showTab('search');
   renderSearch();
   $('btn-search').disabled = true;
   try {
@@ -481,75 +506,161 @@ $('search-form').addEventListener('submit', async (ev) => {
     const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { headers: { authorization: `Bearer ${token}` } });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || `Erro ${res.status}`);
+    // Busca limpa enquanto esperava a resposta: descarta.
+    if (state.search.term !== term) return;
     state.search.results = body.results || [];
     state.search.errors = body.errors || [];
   } catch (err) {
     console.error('Erro na busca:', err);
     toast(`A busca falhou: ${err.message}`, true);
   } finally {
-    state.search.loading = false;
+    if (state.search.term === term) state.search.loading = false;
     $('btn-search').disabled = false;
     renderSearch();
   }
+}
+
+function clearSearch() {
+  state.search = { ...emptySearch(), sort: $('search-sort').value };
+  $('search-input').value = '';
+  $('search-target').value = '';
+  renderSearch();
+}
+
+$('search-form').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const term = $('search-input').value.replace(/\s+/g, ' ').trim();
+  if (term.length < 2) return toast('Digite o que você procura.', true);
+  runSearch(term);
+});
+$('search-input').addEventListener('input', () => ($('search-clear').hidden = !$('search-input').value && !state.search.term));
+$('search-clear').addEventListener('click', () => {
+  clearSearch();
+  $('search-input').focus();
+});
+$('search-reset').addEventListener('click', () => {
+  clearSearch();
+  window.scrollTo({ top: 0 });
+  $('search-input').focus();
+});
+$('search-only-relevant').addEventListener('change', renderSearch);
+$('search-sort').addEventListener('change', () => {
+  state.search.sort = $('search-sort').value;
+  renderSearch();
+});
+$('search-filters').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-store]');
+  if (!btn) return;
+  state.search.store = btn.dataset.store || null;
+  renderSearch();
+});
+$('search-suggest').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-term]');
+  if (btn) runSearch(btn.dataset.term);
 });
 
-$('search-only-relevant').addEventListener('change', renderSearch);
-
-function visibleResults() {
+function baseResults() {
   const onlyRelevant = $('search-only-relevant').checked;
   return state.search.results.filter((r) => !onlyRelevant || (r.relevant && r.available));
+}
+
+function sortResults(list) {
+  const { sort } = state.search;
+  const byAvail = (a, b) => Number(b.available) - Number(a.available) || Number(b.relevant) - Number(a.relevant);
+  const cmp = {
+    price: (a, b) => byAvail(a, b) || a.price - b.price,
+    'price-desc': (a, b) => byAvail(a, b) || b.price - a.price,
+    discount: (a, b) => byAvail(a, b) || discountOf(b) - discountOf(a) || a.price - b.price,
+  }[sort];
+  return [...list].sort(cmp);
 }
 
 function resultHtml(r, isBest) {
   const fav = state.favorites.some((f) => f.productKey === r.productKey);
   const checked = state.search.selected.has(r.productKey);
+  const off = discountOf(r);
+  const id = `pick-${r.productKey.replace(/[^a-z0-9]/gi, '-')}`;
   const price = r.available
-    ? `<span class="price">${brl(r.price)}</span> <span class="sub">à vista${r.priceCard ? ` · ${brl(r.priceCard)} cartão` : ''}${r.listPrice ? ` · <s>${brl(r.listPrice)}</s>` : ''}</span>`
-    : '<span class="sub">Sem estoque</span>';
-  return `<article class="panel result${r.relevant && r.available ? '' : ' dim'}">
-    <input type="checkbox" data-select="${escapeHtml(r.productKey)}" ${checked ? 'checked' : ''} ${fav || !r.available ? 'disabled' : ''} aria-label="Marcar ${escapeHtml(r.title)}">
-    <div class="thumb" ${r.image ? `style="background-image:url('${escapeHtml(r.image)}')"` : ''} role="img" aria-label=""></div>
-    <div>
-      <div class="card-top">
-        <h3>${escapeHtml(r.title)}</h3>
-        <span class="store">${escapeHtml(r.storeName || storeName(r.store))}</span>
-      </div>
-      <div class="prices">${price}</div>
-      <div class="meta">
+    ? `${r.listPrice ? `<s>${brl(r.listPrice)}</s>` : ''}
+       <div class="now">${brl(r.price)}</div>
+       <div class="how">${r.priceCard ? `<b>à vista no Pix</b> · ou ${brl(r.priceCard)} no cartão` : 'à vista'}</div>`
+    : '<div class="out">Indisponível no momento</div>';
+  let pickLabel = '+ <span>Marcar</span>';
+  if (fav) pickLabel = '✓ <span>Favorito</span>';
+  else if (checked) pickLabel = '✓ <span>Marcado</span>';
+  return `<article class="pcard${checked ? ' selected' : ''}${r.relevant && r.available ? '' : ' dim'}">
+    <div class="pimg">
+      ${productImage(r.image, r.title)}
+      <div class="pbadges">
         ${isBest ? '<span class="badge best">Mais barato</span>' : ''}
-        ${fav ? '<span class="badge">Já nos favoritos</span>' : ''}
-        ${r.relevant ? '' : '<span class="badge">Parece acessório ou outro produto</span>'}
-        ${r.seller ? `<span>Vendido por ${escapeHtml(r.seller)}</span>` : ''}
-        <a class="btn-link" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">Abrir na loja</a>
+        ${off >= 5 ? `<span class="badge off">-${off}%</span>` : ''}
+        ${r.relevant ? '' : '<span class="badge muted">Outro produto?</span>'}
       </div>
+      <div class="pick">
+        <input type="checkbox" id="${id}" data-select="${escapeHtml(r.productKey)}" ${checked || fav ? 'checked' : ''} ${fav || !r.available ? 'disabled' : ''}>
+        <label for="${id}" title="Marcar para acompanhar">${pickLabel}</label>
+      </div>
+    </div>
+    <div class="pbody">
+      <div class="pstore"><b>${escapeHtml(r.storeName || storeName(r.store))}</b>${r.seller ? `<span>vendido por ${escapeHtml(r.seller)}</span>` : ''}</div>
+      <h3 class="ptitle" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</h3>
+      <div class="pprice">${price}</div>
+      <a class="btn btn-sm" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">Ver na loja ↗</a>
     </div>
   </article>`;
 }
 
+function renderSuggestions() {
+  const terms = [...new Set([...state.searchAlerts.map((a) => a.term), ...state.radar.terms.filter((t) => !t.includes('-'))])].slice(0, 10);
+  $('search-suggest-wrap').hidden = !terms.length;
+  $('search-suggest').innerHTML = terms.map((t) => `<button type="button" class="chip-btn" data-term="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('');
+}
+
 function renderSearch() {
   const { term, loading, errors, selected } = state.search;
-  $('search-head').hidden = !term;
-  $('search-title').textContent = term ? `Resultados para "${term}"` : '';
-  if (loading) {
-    $('search-info').textContent = '';
-    $('search-results').innerHTML = '<p class="empty">Buscando nas lojas…</p>';
-    $('search-actions').hidden = true;
-    $('search-errors').hidden = true;
+  $('search-hero').hidden = Boolean(term);
+  $('search-results-wrap').hidden = !term;
+  $('search-actions').hidden = !term || loading;
+  $('search-clear').hidden = !term && !$('search-input').value;
+  if (!term) {
+    renderSuggestions();
     return;
   }
-  const list = visibleResults();
-  const hidden = state.search.results.length - list.length;
-  $('search-info').textContent = term ? `${list.length} resultado(s)${hidden ? ` · ${hidden} escondido(s)` : ''}` : '';
-  const bestKey = list.find((r) => r.relevant && r.available)?.productKey;
-  $('search-results').innerHTML = !term
-    ? ''
-    : list.length
-      ? list.map((r) => resultHtml(r, r.productKey === bestKey)).join('')
-      : '<p class="panel empty">Nada encontrado. Tente outras palavras ou desmarque "Esconder acessórios".</p>';
+
+  if (loading) {
+    $('search-title').innerHTML = `Buscando "${escapeHtml(term)}"…`;
+    $('search-filters').innerHTML = '';
+    $('search-errors').hidden = true;
+    $('search-results').innerHTML = '<div class="panel empty" style="grid-column:1/-1"><b>Consultando as lojas…</b>Leva só alguns segundos.</div>';
+    return;
+  }
+
+  const base = baseResults();
+  const stores = [...new Set(base.map((r) => r.storeName || storeName(r.store)))].sort();
+  if (state.search.store && !stores.includes(state.search.store)) state.search.store = null;
+  $('search-filters').innerHTML = stores.length > 1
+    ? ['', ...stores]
+        .map((s) => {
+          const n = s ? base.filter((r) => (r.storeName || storeName(r.store)) === s).length : base.length;
+          return `<button type="button" class="chip-btn" data-store="${escapeHtml(s)}" aria-pressed="${String((state.search.store || '') === s)}">${escapeHtml(s || 'Todas')} <span class="n">${n}</span></button>`;
+        })
+        .join('')
+    : '';
+
+  const list = sortResults(base.filter((r) => !state.search.store || (r.storeName || storeName(r.store)) === state.search.store));
+  const hidden = state.search.results.length - base.length;
+  $('search-title').innerHTML = `"${escapeHtml(term)}" <span>${list.length} oferta(s)${hidden ? ` · ${hidden} escondida(s)` : ''}</span>`;
+  const cheapest = base.filter((r) => r.relevant && r.available).sort((a, b) => a.price - b.price)[0]?.productKey;
+  $('search-results').innerHTML = list.length
+    ? list.map((r) => resultHtml(r, r.productKey === cheapest)).join('')
+    : '<div class="panel empty" style="grid-column:1/-1"><b>Nada encontrado</b>Tente outras palavras ou desmarque "Esconder acessórios".</div>';
   $('search-errors').hidden = !errors.length;
-  $('search-errors').textContent = errors.length ? `⚠️ Não consegui consultar: ${errors.map((e) => e.storeName).join(', ')}.` : '';
-  $('search-actions').hidden = !term;
-  $('btn-follow').textContent = selected.size ? `⭐ Acompanhar ${selected.size} marcado(s)` : '⭐ Acompanhar marcados';
+  $('search-errors').textContent = errors.length ? `⚠️ Não consegui consultar agora: ${errors.map((e) => e.storeName).join(', ')}.` : '';
+
+  $('sel-info').innerHTML = selected.size
+    ? `${selected.size} produto(s) marcado(s)<small>Defina quanto pagaria e acompanhe todos com a mesma meta</small>`
+    : 'Gostou de algo?<small>Marque produtos para acompanhar, ou crie um alerta para a busca inteira</small>';
+  $('btn-follow').textContent = selected.size ? `Acompanhar ${selected.size}` : 'Acompanhar marcados';
 }
 
 $('search-results').addEventListener('change', (ev) => {
@@ -564,12 +675,15 @@ $('search-actions').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const mode = ev.submitter?.dataset.mode;
   const target = parseBRL($('search-target').value);
-  if (target == null) return toast('Informe o preço que você pagaria, ex.: 2.500,00.', true);
+  if (target == null) {
+    $('search-target').focus();
+    return toast('Informe o preço que você pagaria, ex.: 2.500,00.', true);
+  }
   const { term, results, selected } = state.search;
 
   if (mode === 'alert') {
     if (state.searchAlerts.some((a) => normalizeTerm(a.term) === normalizeTerm(term))) {
-      return toast('Já existe um alerta para essa busca — altere a meta dele abaixo.', true);
+      return toast('Já existe um alerta para essa busca — altere a meta dele mais abaixo.', true);
     }
     try {
       await db.collection('searchAlerts').add({ uid: state.user.uid, term, targetPrice: target, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -617,10 +731,11 @@ function listenSearchAlerts() {
       (snap) => {
         state.searchAlerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         renderSearchAlerts();
+        if (!state.search.term) renderSuggestions();
       },
       (err) => {
         console.error('Erro ao ler alertas por busca:', err);
-        $('search-alerts').innerHTML = '<p class="panel empty">Não consegui carregar os alertas. Recarregue a página.</p>';
+        $('search-alerts').innerHTML = '<div class="panel empty">Não consegui carregar os alertas. Recarregue a página.</div>';
       },
     );
 }
@@ -629,27 +744,31 @@ function searchAlertHtml(a) {
   const checked = toDate(a.checkedAt);
   let best;
   if (a.best) {
-    best = `<div class="prices"><span class="price">${brl(a.best.price)}</span> <span class="sub">na ${escapeHtml(a.best.storeName)} · <a href="${escapeHtml(a.best.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.best.title)}</a></span></div>`;
+    best = `<a class="best" href="${escapeHtml(a.best.url)}" target="_blank" rel="noopener noreferrer">
+      ${a.best.image ? `<img src="${escapeHtml(a.best.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
+      <div><div class="now">${brl(a.best.price)}</div><div class="what">${escapeHtml(a.best.storeName)} · ${escapeHtml(a.best.title)}</div></div>
+    </a>`;
   } else if (checked) {
-    best = '<span class="sub">Nenhuma loja tem agora.</span>';
+    best = '<span class="pill wait">Nenhuma loja tem agora</span>';
   } else {
-    best = `<span class="status wait">Aguardando a 1ª busca (${CHECK_INTERVAL_TEXT})</span>`;
+    best = `<span class="pill wait">Aguardando a 1ª busca (${CHECK_INTERVAL_TEXT})</span>`;
   }
   let status = '';
   if (a.best) {
-    status = a.best.price <= a.targetPrice ? '<span class="status ok">🎯 Na sua meta!</span>' : `<span class="status gap">Faltam ${brl(a.best.price - a.targetPrice)}</span>`;
+    status = a.best.price <= a.targetPrice ? '<span class="pill ok">🎯 Na sua meta</span>' : `<span class="pill gap">Faltam ${brl(a.best.price - a.targetPrice)}</span>`;
   }
-  return `<article class="panel">
-    <div class="card-top"><h3>🔔 ${escapeHtml(a.term)}</h3><span class="store">meta ${brl(a.targetPrice)}</span></div>
+  return `<article class="panel acard">
+    <div class="acard-top"><h3>${escapeHtml(a.term)}</h3><span class="target">meta <b>${brl(a.targetPrice)}</b></span></div>
     ${best}
-    ${status}
-    <div class="meta">
-      ${checked ? `<span>Conferido ${timeAgo(checked)}</span>` : ''}
-      ${a.lastError ? `<span>⚠️ ${escapeHtml(a.lastError)}</span>` : ''}
-    </div>
-    <div class="actions">
-      <button class="btn-link" type="button" data-alert-action="edit" data-id="${a.id}">Alterar meta</button>
-      <button class="btn-link" type="button" data-alert-action="remove" data-id="${a.id}">Remover</button>
+    <div>${status}${checked ? `<span class="when">conferido ${timeAgo(checked)}</span>` : ''}</div>
+    ${a.lastError ? `<div class="error">⚠️ ${escapeHtml(a.lastError)}</div>` : ''}
+    <div class="card-links">
+      <button class="btn-link" type="button" data-alert-action="search" data-id="${a.id}">Ver resultados</button>
+      <span>
+        <button class="btn-link" type="button" data-alert-action="edit" data-id="${a.id}">Alterar meta</button>
+        &nbsp;·&nbsp;
+        <button class="btn-link danger" type="button" data-alert-action="remove" data-id="${a.id}">Remover</button>
+      </span>
     </div>
   </article>`;
 }
@@ -658,7 +777,7 @@ function renderSearchAlerts() {
   const alerts = [...state.searchAlerts].sort((a, b) => a.term.localeCompare(b.term));
   $('search-alerts').innerHTML = alerts.length
     ? alerts.map(searchAlertHtml).join('')
-    : '<p class="panel empty">Nenhum ainda. Busque um produto acima e use "Avisar quando qualquer loja tiver".</p>';
+    : '<div class="panel empty" style="grid-column:1/-1"><b>Nenhum alerta ainda</b>Busque um produto e use "Alerta para esta busca".</div>';
 }
 
 $('search-alerts').addEventListener('click', async (ev) => {
@@ -666,6 +785,7 @@ $('search-alerts').addEventListener('click', async (ev) => {
   if (!btn) return;
   const alert = state.searchAlerts.find((a) => a.id === btn.dataset.id);
   if (!alert) return;
+  if (btn.dataset.alertAction === 'search') runSearch(alert.term);
   if (btn.dataset.alertAction === 'edit') {
     state.editingId = alert.id;
     state.editingKind = 'searchAlerts';
@@ -684,13 +804,13 @@ $('search-alerts').addEventListener('click', async (ev) => {
   }
 });
 
-// ---------- renderização ----------
+// ---------- renderização dos favoritos ----------
 function statusOf(f) {
   if (f.lastError && !f.lastCheckedAt) return { cls: 'err', text: `Não consegui ler: ${f.lastError}` };
-  if (!f.lastCheckedAt) return { cls: 'wait', text: `Aguardando a 1ª verificação (${CHECK_INTERVAL_TEXT})` };
+  if (!f.lastCheckedAt) return { cls: 'wait', text: `Aguardando a 1ª verificação` };
   if (f.available === false) return { cls: 'err', text: 'Sem estoque' };
   const gap = f.price - f.targetPrice;
-  if (gap <= 0) return { cls: 'ok', text: '🎯 Na sua meta!' };
+  if (gap <= 0) return { cls: 'ok', text: '🎯 Na sua meta' };
   return { cls: 'gap', text: `Faltam ${brl(gap)} (${Math.round((gap / f.price) * 100)}%)` };
 }
 
@@ -707,9 +827,9 @@ function sparkline(f) {
   const max = Math.max(...values);
   const t0 = pts[0].t;
   const span = pts[pts.length - 1].t - t0 || 1;
-  const y = (v) => (max === min ? 20 : 38 - ((v - min) / (max - min)) * 34);
+  const y = (v) => (max === min ? 20 : 36 - ((v - min) / (max - min)) * 32);
   const line = pts.map((p) => `${(((p.t - t0) / span) * 100).toFixed(2)},${y(p.p).toFixed(2)}`).join(' ');
-  return `<svg class="spark" viewBox="0 0 100 42" preserveAspectRatio="none" role="img" aria-label="Histórico de preço, de ${brl(Math.min(...pts.map((p) => p.p)))} a ${brl(Math.max(...pts.map((p) => p.p)))}">
+  return `<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Histórico de preço, de ${brl(Math.min(...pts.map((p) => p.p)))} a ${brl(Math.max(...pts.map((p) => p.p)))}; linha tracejada é a meta">
     <line class="target" x1="0" x2="100" y1="${y(f.targetPrice)}" y2="${y(f.targetPrice)}"></line>
     <polyline class="line" points="${line}"></polyline></svg>`;
 }
@@ -718,33 +838,35 @@ function cardHtml(f) {
   const st = statusOf(f);
   const store = STORES.find((s) => s.id === f.store)?.name || f.store;
   const checked = toDate(f.lastCheckedAt);
-  const lowest = f.lowestPrice != null ? `Menor: ${brl(f.lowestPrice)}` : '';
-  const errorLine = f.lastError && f.lastCheckedAt ? `<span>⚠️ Última leitura falhou: ${escapeHtml(f.lastError)}</span>` : '';
-  const prices = f.lastCheckedAt
-    ? `<div class="prices"><span class="price">${brl(f.price)}</span>
-        <span class="sub">à vista${f.priceCard ? ` · ${brl(f.priceCard)} cartão` : ''}${f.listPrice ? ` · <s>${brl(f.listPrice)}</s>` : ''}</span></div>`
+  const off = f.listPrice > f.price ? Math.round((1 - f.price / f.listPrice) * 100) : 0;
+  const price = f.lastCheckedAt && f.available !== false
+    ? `${f.listPrice ? `<s>${brl(f.listPrice)}</s>` : ''}
+       <div class="now">${brl(f.price)}</div>
+       <div class="how">${f.priceCard ? `<b>à vista no Pix</b> · ou ${brl(f.priceCard)} no cartão` : 'à vista'}</div>`
     : '';
-  return `<article class="panel card">
-    <div class="thumb" ${f.image ? `style="background-image:url('${escapeHtml(f.image)}')"` : ''} role="img" aria-label=""></div>
-    <div>
-      <div class="card-top">
-        <h3>${escapeHtml(f.title || f.url)}</h3>
-        <span class="store">${escapeHtml(store)}</span>
+  return `<article class="pcard fcard">
+    <div class="pimg">
+      ${productImage(f.image, f.title || '')}
+      <div class="pbadges">
+        ${off >= 5 ? `<span class="badge off">-${off}%</span>` : ''}
       </div>
-      ${f.group ? `<div class="group">Grupo: ${escapeHtml(f.group)}</div>` : ''}
-      ${prices}
-      <span class="status ${st.cls}">${escapeHtml(st.text)}</span>
-      <div class="meta">
-        <span>Meta: <b>${brl(f.targetPrice)}</b></span>
-        ${lowest ? `<span>${lowest}</span>` : ''}
-        ${checked ? `<span>Verificado ${timeAgo(checked)}</span>` : ''}
-        ${errorLine}
+    </div>
+    <div class="pbody">
+      <div class="pstore"><b>${escapeHtml(store)}</b>${checked ? `<span>conferido ${timeAgo(checked)}</span>` : ''}</div>
+      ${f.group ? `<div class="group">${escapeHtml(f.group)}</div>` : ''}
+      <h3 class="ptitle" title="${escapeHtml(f.title || f.url)}">${escapeHtml(f.title || f.url)}</h3>
+      <div class="pprice">${price}</div>
+      <div><span class="pill ${st.cls}">${escapeHtml(st.text)}</span></div>
+      <div class="facts">
+        <span>Meta <b>${brl(f.targetPrice)}</b></span>
+        ${f.lowestPrice != null ? `<span>Menor visto <b>${brl(f.lowestPrice)}</b></span>` : ''}
       </div>
       ${sparkline(f)}
-      <div class="actions">
-        <a class="btn-link" href="${escapeHtml(f.url)}" target="_blank" rel="noopener noreferrer">Abrir na loja</a>
+      ${f.lastError && f.lastCheckedAt ? `<div class="error">⚠️ Última leitura falhou: ${escapeHtml(f.lastError)}</div>` : ''}
+      <a class="btn btn-sm" href="${escapeHtml(f.url)}" target="_blank" rel="noopener noreferrer">Ver na loja ↗</a>
+      <div class="card-links">
         <button class="btn-link" type="button" data-action="edit" data-id="${f.id}">Alterar meta</button>
-        <button class="btn-link" type="button" data-action="remove" data-id="${f.id}">Remover</button>
+        <button class="btn-link danger" type="button" data-action="remove" data-id="${f.id}">Remover</button>
       </div>
     </div>
   </article>`;
@@ -752,16 +874,20 @@ function cardHtml(f) {
 
 function render() {
   const favs = [...state.favorites].sort((a, b) => sortScore(a) - sortScore(b));
-  const inTarget = favs.filter((f) => f.lastCheckedAt && f.price <= f.targetPrice).length;
-  $('list-info').textContent = favs.length ? `${favs.length} produto(s)${inTarget ? ` · ${inTarget} na meta` : ''}` : '';
+  const inTarget = favs.filter((f) => f.lastCheckedAt && f.price <= f.targetPrice && f.available !== false).length;
+  setCount('count-favs', favs.length);
+  $('list-info').innerHTML = favs.length
+    ? `<div class="stat"><b>${favs.length}</b><span>acompanhando</span></div><div class="stat${inTarget ? ' good' : ''}"><b>${inTarget}</b><span>na meta</span></div>`
+    : '';
+  $('add-panel').open = !favs.length;
   $('list').innerHTML = favs.length
     ? favs.map(cardHtml).join('')
-    : '<p class="panel empty">Nenhum favorito ainda. Cole o link de um produto acima para começar.</p>';
+    : '<div class="panel empty" style="grid-column:1/-1"><b>Nenhum favorito ainda</b>Busque um produto e marque o que quer acompanhar, ou cole o link acima.</div>';
 }
 
 $('stores').innerHTML =
-  STORES.map((s) => `<span class="chip on">✓ ${s.name}</span>`).join('') +
-  COMING_SOON.map((c) => `<span class="chip">${c.name} · em breve</span>`).join('');
+  STORES.map((s) => `<span class="on">✓ ${escapeHtml(s.name)}</span>`).join('') +
+  COMING_SOON.map((c) => `<span>${escapeHtml(c.name)} · em breve</span>`).join('');
 
-// Atualiza o "verificado há X" sem precisar recarregar.
+// Atualiza o "conferido há X" sem precisar recarregar.
 setInterval(() => state.favorites.length && render(), 60000);
