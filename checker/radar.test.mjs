@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseChannelPage, decodeEntities } from './radar/channel.mjs';
 import { fingerprint, matchTerms, parseTerm } from './radar/match.mjs';
-import { formatRadarMessage } from './radar.mjs';
+import { formatRadarMessage } from './radar/run.mjs';
 
 const page = readFileSync(new URL('./fixtures/tg-ofertasnintendobr.html', import.meta.url), 'utf8');
 const terms = (...t) => t.map(parseTerm);

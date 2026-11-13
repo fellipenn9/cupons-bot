@@ -1,0 +1,17 @@
+# Publicação na Cloudflare: npx wrangler@4 deploy
+# (precisa de CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID no ambiente — ver tools/deploy.ps1)
+name = "cupons-bot"
+main = "worker/index.mjs"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# Site: só a pasta web/ é publicada (segredos/ e checker/fixtures/ ficam de fora).
+[assets]
+directory = "./web"
+
+# Manter igual a RADAR_CRON e CHECK_CRON em worker/index.mjs.
+[triggers]
+crons = ["*/15 * * * *", "17 */2 * * *"]
+
+[observability]
+enabled = true

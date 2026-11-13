@@ -3,12 +3,19 @@
 Monitor pessoal de preços: cadastro favoritos no site, um verificador consulta as lojas
 a cada 2 horas e avisa no Telegram quando o preço chega na meta.
 
-| Parte | Onde | Roda em |
+Tudo roda na Cloudflare (Worker `cupons-bot`, plano gratuito):
+
+| Parte | Onde | Quando |
 |---|---|---|
-| Site (favoritos, metas, histórico) | `web/` | GitHub Pages + Firebase (login Google, Firestore) |
-| Verificador de preços | `checker/check.mjs` | GitHub Actions, a cada 2 h (`verificar-precos.yml`) |
-| Radar de ofertas (canais do Telegram) | `checker/radar.mjs` | GitHub Actions, a cada 15 min (`radar.yml`) |
-| Regras de segurança | `firestore.rules` | publicar com `node tools/deploy-rules.mjs` |
+| Site (favoritos, metas, histórico, Radar) | `web/` | https://cupons-bot.fellipenn9.workers.dev |
+| Verificador de preços | `checker/run-check.mjs` | cron `17 */2 * * *` (a cada 2 h) |
+| Radar de ofertas (canais do Telegram) | `checker/radar/run.mjs` | cron `*/15 * * * *` |
+| Entrada do Worker | `worker/index.mjs` + `wrangler.toml` | — |
+| Regras do Firestore | `firestore.rules` | `node tools/deploy-rules.mjs` |
+
+Publicar: `node tools/deploy.mjs` (roda os testes antes). Com `--secrets` reenvia token do
+Telegram e chave do Firebase. Logs ao vivo: `npx wrangler@4 tail` (com o token no ambiente).
+O GitHub guarda só o código: o Actions da conta está desativado pelo GitHub (nov/2026).
 
 ## Lojas
 
@@ -28,7 +35,7 @@ com o User-Agent do projeto) — loja que bloqueia robô não é contornada.
 ## Comandos
 
 ```bash
-node --test checker/check.test.mjs              # testes
+node --test checker/check.test.mjs checker/radar.test.mjs   # testes
 node checker/try-url.mjs <link>                 # testa a leitura de um produto
 node checker/check.mjs --dry-run                # simula a rodada (não grava, não avisa)
 node checker/check.mjs                          # rodada real
@@ -39,5 +46,5 @@ node tools/deploy-rules.mjs                     # publica as regras do Firestore
 
 Credenciais locais ficam em `segredos/` (fora do Git): `.env` com `TELEGRAM_BOT_TOKEN`,
 `TELEGRAM_CHAT_ID`, `ML_APP_ID`, `ML_CLIENT_SECRET`, e `firebase-servico.json`.
-No GitHub, viram os Secrets `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` e
-`FIREBASE_SERVICE_ACCOUNT` (conteúdo inteiro do JSON).
+Na Cloudflare, viram os segredos do Worker (`node tools/deploy.mjs --secrets`).
+`CLOUDFLARE_API_TOKEN` também fica no `.env`.

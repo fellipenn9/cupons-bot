@@ -45,8 +45,24 @@ export function parseChannelPage(html, channel) {
   return posts.sort((a, b) => a.id - b.id);
 }
 
-export async function fetchChannel(channel) {
-  const res = await fetch(`https://t.me/s/${encodeURIComponent(channel)}`, {
+// Busca para trás (?before=) até alcançar o último post já visto, para não pular nada em canal muito ativo.
+export async function fetchChannelSince(channel, lastSeenId, maxPages = 4) {
+  const first = await fetchChannel(channel);
+  const all = new Map(first.posts.map((p) => [p.id, p]));
+  let oldest = first.posts[0]?.id;
+  for (let page = 1; lastSeenId != null && oldest > lastSeenId + 1 && page < maxPages; page++) {
+    const older = await fetchChannel(channel, oldest);
+    if (!older.posts.length) break;
+    for (const p of older.posts) all.set(p.id, p);
+    if (older.posts[0].id >= oldest) break;
+    oldest = older.posts[0].id;
+  }
+  return { title: first.title, posts: [...all.values()].sort((a, b) => a.id - b.id) };
+}
+
+export async function fetchChannel(channel, beforeId) {
+  const qs = beforeId ? `?before=${beforeId}` : '';
+  const res = await fetch(`https://t.me/s/${encodeURIComponent(channel)}${qs}`, {
     headers: { 'user-agent': USER_AGENT, 'accept-language': 'pt-BR' },
     signal: AbortSignal.timeout(20000),
   });

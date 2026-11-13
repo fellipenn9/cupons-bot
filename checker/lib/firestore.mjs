@@ -1,19 +1,26 @@
-import { createSign } from 'node:crypto';
-
 // Cliente mínimo do Firestore via REST, autenticado pela conta de serviço.
-// Evita depender do firebase-admin (sem npm install no GitHub Actions).
+// Só usa APIs web (fetch, crypto.subtle), então roda igual no Node e no Cloudflare Workers.
+
+const base64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const utf8 = (s) => new TextEncoder().encode(s);
+
+async function signRs256(privateKeyPem, data) {
+  const der = Uint8Array.from(atob(privateKeyPem.replace(/-----[^-]+-----|\s/g, '')), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  return base64url(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, utf8(data)));
+}
 
 export async function getAccessToken(serviceAccount, scope = 'https://www.googleapis.com/auth/datastore') {
-  const b64 = (v) => Buffer.from(typeof v === 'string' ? v : JSON.stringify(v)).toString('base64url');
+  const b64json = (v) => base64url(utf8(JSON.stringify(v)));
   const now = Math.floor(Date.now() / 1000);
-  const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({
+  const unsigned = `${b64json({ alg: 'RS256', typ: 'JWT' })}.${b64json({
     iss: serviceAccount.client_email,
     scope,
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
   })}`;
-  const signature = createSign('RSA-SHA256').update(unsigned).sign(serviceAccount.private_key, 'base64url');
+  const signature = await signRs256(serviceAccount.private_key, unsigned);
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
