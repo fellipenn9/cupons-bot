@@ -32,7 +32,7 @@ const COMING_SOON = [
   { name: 'Magalu', re: /magazineluiza\.com|magazinevoce\.com|magalu\.com/i },
   { name: 'AliExpress', re: /aliexpress\./i },
 ];
-const CHECK_INTERVAL_TEXT = 'em até 2 horas';
+const CHECK_INTERVAL_TEXT = 'em até 30 minutos';
 
 firebase.initializeApp(window.FIREBASE_CONFIG);
 const auth = firebase.auth();

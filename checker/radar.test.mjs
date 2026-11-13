@@ -38,6 +38,12 @@ test('termos: plural e exclusão', () => {
   assert.deepEqual(matchTerms('Frigobar e geladeira', terms('geladeira -frigobar')), []);
 });
 
+test('termos: exclusão aceita espaço depois do tracinho', () => {
+  assert.deepEqual(matchTerms('Switch 2 com Mario Kart, oferta Nintendo', terms('nintendo - sorteio')), ['nintendo - sorteio']);
+  assert.deepEqual(matchTerms('Sorteio: R$100 Nintendo', terms('nintendo - sorteio')), []);
+  assert.deepEqual(matchTerms('Wi-Fi 6 roteador', terms('wi-fi')), ['wi-fi']);
+});
+
 test('termos: palavra curta não casa pedaço de outra', () => {
   assert.deepEqual(matchTerms('Ventilador Mondial', terms('ps5')), []);
   assert.deepEqual(matchTerms('Console PS5 slim', terms('ps5')), ['ps5']);

@@ -1,11 +1,12 @@
 // Ponto de entrada na Cloudflare.
 // - Site: os arquivos de web/ são servidos direto pela Cloudflare (bloco [assets] do wrangler.toml).
-// - Agendamentos (crons do wrangler.toml): Radar a cada 15 min, verificador de preços a cada 2 h.
+// - Agendamentos (crons do wrangler.toml): Radar a cada 2 min, verificador de preços a cada 30 min.
 import { runCheck } from '../checker/run-check.mjs';
 import { runRadar } from '../checker/radar/run.mjs';
 
-export const RADAR_CRON = '*/15 * * * *';
-export const CHECK_CRON = '17 */2 * * *';
+// Não exportar: no Worker, todo export do arquivo de entrada é tratado como handler e derruba o runtime.
+const RADAR_CRON = '*/2 * * * *';
+const CHECK_CRON = '5,35 * * * *';
 
 function configFrom(env) {
   return {

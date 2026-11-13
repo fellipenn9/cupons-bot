@@ -8,7 +8,8 @@ import { escapeHtml, sendTelegram } from '../lib/telegram.mjs';
 import { fetchChannel, fetchChannelSince } from './channel.mjs';
 import { fingerprint, matchTerms, parseTerm } from './match.mjs';
 
-const MAX_SENDS_PER_RUN = 25;
+// Rodando a cada 2 min, o limite raramente é atingido; ele protege o limite de 50 requisições por execução da Cloudflare.
+const MAX_SENDS_PER_RUN = 12;
 const RECENT_MAX = 400;
 const TEXT_MAX = 900;
 

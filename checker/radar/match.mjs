@@ -15,7 +15,9 @@ const tokenize = (s) => normalize(s).split(/[^a-z0-9]+/).filter(Boolean);
 export function parseTerm(term) {
   const include = [];
   const exclude = [];
-  for (const raw of String(term).trim().split(/\s+/)) {
+  // "nintendo - sorteio" (com espaço depois do tracinho) também é exclusão.
+  const normalizedTerm = String(term).trim().replace(/(^|\s)-\s+(?=\S)/g, '$1-');
+  for (const raw of normalizedTerm.split(/\s+/)) {
     const neg = raw.startsWith('-');
     const words = tokenize(neg ? raw.slice(1) : raw);
     (neg ? exclude : include).push(...words);

@@ -8,8 +8,8 @@ Tudo roda na Cloudflare (Worker `cupons-bot`, plano gratuito):
 | Parte | Onde | Quando |
 |---|---|---|
 | Site (favoritos, metas, histórico, Radar) | `web/` | https://cupons-bot.fellipenn9.workers.dev |
-| Verificador de preços | `checker/run-check.mjs` | cron `17 */2 * * *` (a cada 2 h) |
-| Radar de ofertas (canais do Telegram) | `checker/radar/run.mjs` | cron `*/15 * * * *` |
+| Verificador de preços | `checker/run-check.mjs` | cron `5,35 * * * *` (a cada 30 min) |
+| Radar de ofertas (canais do Telegram) | `checker/radar/run.mjs` | cron `*/2 * * * *` (a cada 2 min) |
 | Entrada do Worker | `worker/index.mjs` + `wrangler.toml` | — |
 | Regras do Firestore | `firestore.rules` | `node tools/deploy-rules.mjs` |
 
