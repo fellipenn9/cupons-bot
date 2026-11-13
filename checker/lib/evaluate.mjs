@@ -7,9 +7,13 @@ export const FAILS_BEFORE_WARNING = 3;
 // Decide o que gravar e o que avisar a partir de uma leitura de preço bem-sucedida.
 // Função pura: não acessa rede nem banco, para poder ser testada.
 export function evaluateOffer(fav, offer, now = new Date()) {
-  const messages = [];
   const title = offer.title || fav.title || 'Produto';
   const link = `<a href="${escapeHtml(fav.url)}">${escapeHtml(title)}</a>`;
+
+  // Sem estoque o preço exibido não é comprável: não entra no histórico, no menor preço nem no alerta.
+  if (!offer.available || offer.price == null) return evaluateUnavailable(fav, offer, link, now);
+
+  const messages = [];
   const price = offer.price;
 
   // Histórico: um ponto quando o preço muda, ou um por dia se ficar parado.
@@ -24,7 +28,7 @@ export function evaluateOffer(fav, offer, now = new Date()) {
   const target = fav.targetPrice;
   const alertStillValid = fav.alertedPrice != null && fav.alertTarget === target;
   let alertedPrice = alertStillValid ? fav.alertedPrice : null;
-  const reachedTarget = offer.available && target != null && price <= target;
+  const reachedTarget = target != null && price <= target;
 
   if (reachedTarget && (alertedPrice == null || price < alertedPrice)) {
     const extra = alertedPrice != null ? `Caiu de novo: era ${brl(alertedPrice)}.` : `Sua meta era ${brl(target)}.`;
@@ -45,8 +49,7 @@ export function evaluateOffer(fav, offer, now = new Date()) {
     messages.push(
       `👀 <b>Comecei a acompanhar</b>\n${link}\n\nAgora: <b>${brl(price)}</b> à vista` +
         (offer.listPrice ? ` (de ${brl(offer.listPrice)})` : '') +
-        (gap != null ? `\nSua meta: ${brl(target)} — faltam ${brl(gap)}.` : '') +
-        (offer.available ? '' : '\n⚠️ Está sem estoque no momento.'),
+        (gap != null ? `\nSua meta: ${brl(target)} — faltam ${brl(gap)}.` : ''),
     );
   }
 
@@ -71,6 +74,22 @@ export function evaluateOffer(fav, offer, now = new Date()) {
     alertTarget: alertedPrice != null ? target : null,
   };
   return { update, messages };
+}
+
+function evaluateUnavailable(fav, offer, link, now) {
+  const messages = [];
+  if (!fav.lastCheckedAt) messages.push(`👀 <b>Comecei a acompanhar</b>\n${link}\n\n⚠️ Está sem estoque agora — aviso quando voltar.`);
+  return {
+    messages,
+    update: {
+      title: offer.title || fav.title || null,
+      image: offer.image || fav.image || null,
+      available: false,
+      lastCheckedAt: now,
+      lastError: null,
+      failCount: 0,
+    },
+  };
 }
 
 export function evaluateFailure(fav, error, now = new Date()) {

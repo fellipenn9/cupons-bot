@@ -1,10 +1,30 @@
 'use strict';
 
 // Lojas que o verificador já sabe ler (manter igual a checker/stores/index.mjs).
+// Lojas VTEX: link de produto termina em /<slug>/p.
+const vtexStore = (id, name, host) => ({
+  id,
+  name,
+  productKey(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.replace(/^www\./, '') !== host.replace(/^www\./, '')) return null;
+      return u.pathname.match(/^\/([^/]+)\/p\/?$/)?.[1];
+    } catch {
+      return null;
+    }
+  },
+});
 const STORES = [
-  { id: 'kabum', name: 'KaBuM!', productKey: (url) => url.match(/kabum\.com\.br\/produto\/(\d+)/i)?.[1] },
+  { id: 'kabum', name: 'KaBuM!', productKey: (url) => url.match(/^https:\/\/(www\.)?kabum\.com\.br\/produto\/(\d+)/i)?.[2] },
+  vtexStore('americanas', 'Americanas', 'www.americanas.com.br'),
+  vtexStore('brastemp', 'Brastemp', 'www.brastemp.com.br'),
+  vtexStore('consul', 'Consul', 'www.consul.com.br'),
+  vtexStore('electrolux', 'Electrolux', 'loja.electrolux.com.br'),
+  vtexStore('lojasmm', 'Lojas MM', 'www.lojasmm.com'),
+  vtexStore('copag', 'COPAG', 'www.copagloja.com.br'),
 ];
-// Lojas previstas, para dar uma mensagem clara em vez de "link inválido".
+// Lojas previstas ou bloqueadas, para dar uma mensagem clara em vez de "link inválido".
 const COMING_SOON = [
   { name: 'Mercado Livre', re: /mercadoli(vre|bre)\.com|meli\.la/i },
   { name: 'Shopee', re: /shopee\.com/i },
@@ -58,7 +78,7 @@ function toast(message, isError = false) {
 function identifyStore(url) {
   for (const s of STORES) {
     const id = s.productKey(url);
-    if (id) return { store: s, productKey: `${s.id}:${id}` };
+    if (id) return { store: s, productKey: `${s.id}:${decodeURIComponent(id)}` };
   }
   const coming = COMING_SOON.find((c) => c.re.test(url));
   return { comingSoon: coming?.name };

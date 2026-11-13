@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseKabum, kabum } from './stores/kabum.mjs';
 import { evaluateFailure, evaluateOffer, FAILS_BEFORE_WARNING } from './lib/evaluate.mjs';
+import { parseVtexProduct } from './stores/vtex.mjs';
+import { detectStore } from './stores/index.mjs';
 
 const fixture = readFileSync(new URL('./fixtures/kabum-produto.html', import.meta.url), 'utf8');
 const offer = (price, extra = {}) => ({ title: 'Mouse', image: null, price, priceCard: null, listPrice: null, available: true, ...extra });
@@ -80,6 +82,51 @@ test('histórico: grava quando o preço muda e não duplica preço igual no mesm
   assert.equal(c.update.history.length, 2);
   const d = evaluateOffer({ ...checked, ...c.update }, offer(95), new Date('2026-11-11T15:00:00Z'));
   assert.equal(d.update.history.length, 3);
+});
+
+const vtexFixture = JSON.parse(readFileSync(new URL('./fixtures/vtex-consul.json', import.meta.url), 'utf8'));
+
+test('VTEX: lê a resposta real da Consul (preço, "de", estoque, imagem)', () => {
+  const o = parseVtexProduct(vtexFixture);
+  assert.match(o.title, /Geladeira/);
+  assert.ok(o.price > 0);
+  assert.equal(o.available, true);
+  assert.ok(o.listPrice == null || o.listPrice > o.price);
+  assert.match(o.image, /^https:\/\//);
+});
+
+test('VTEX: escolhe o vendedor com estoque mais barato e usa o Pix quando menor', () => {
+  const offer = (Price, AvailableQuantity, pix) => ({
+    commertialOffer: { Price, ListPrice: 200, AvailableQuantity, Installments: pix ? [{ PaymentSystemName: 'Pix', NumberOfInstallments: 1, Value: pix }] : [] },
+  });
+  const product = { productName: 'X', items: [{ images: [], sellers: [{ sellerName: 'A', ...offer(150, 1) }, { sellerName: 'B', ...offer(140, 1, 133) }, { sellerName: 'C', ...offer(90, 0) }] }] };
+  const o = parseVtexProduct(product);
+  assert.equal(o.price, 133);
+  assert.equal(o.priceCard, 140);
+  assert.equal(o.seller, 'B');
+});
+
+test('VTEX: todos sem estoque → indisponível, sem preço', () => {
+  const o = parseVtexProduct({ productName: 'X', items: [{ images: [], sellers: [{ commertialOffer: { Price: 0, AvailableQuantity: 0 } }] }] });
+  assert.equal(o.available, false);
+  assert.equal(o.price, null);
+});
+
+test('detectStore reconhece cada loja pelo link de produto', () => {
+  assert.equal(detectStore('https://www.consul.com.br/geladeira-x/p').id, 'consul');
+  assert.equal(detectStore('https://americanas.com.br/armario-y/p?skuId=1').id, 'americanas');
+  assert.equal(detectStore('https://www.copagloja.com.br/combo-de-booster-pokemon-reinado-delta/p').productKey('https://www.copagloja.com.br/combo-de-booster-pokemon-reinado-delta/p'), 'copag:combo-de-booster-pokemon-reinado-delta');
+  assert.equal(detectStore('https://www.consul.com.br/geladeiras'), null);
+  assert.equal(detectStore('https://www.americanas.com.br.golpe.com/x/p'), null);
+});
+
+test('sem estoque não entra no histórico nem no menor preço', () => {
+  const fav = { ...checked, targetPrice: 100, history: [{ t: new Date('2026-11-01'), p: 120 }] };
+  const r = evaluateOffer(fav, offer(null, { available: false }));
+  assert.equal(r.update.available, false);
+  assert.equal(r.update.history, undefined);
+  assert.equal(r.update.lowestPrice, undefined);
+  assert.equal(r.update.price, undefined);
 });
 
 test('falhas: avisa uma única vez, na terceira seguida', () => {
