@@ -49,12 +49,20 @@ service cloud.firestore {
         && request.resource.data.channels is list && request.resource.data.channels.size() <= 40;
     }
 
+    // Novidades nas lojas: buscas { store, term } editadas pelo site.
+    match /settings/watches {
+      allow read: if isOwnerAccount();
+      allow write: if isOwnerAccount()
+        && request.resource.data.keys().hasOnly(['items', 'updatedAt'])
+        && request.resource.data.items is list && request.resource.data.items.size() <= 20;
+    }
+
     // Cupons achados pelo Radar: o site só lê; quem grava é o Radar (conta de serviço).
     match /coupons/recent {
       allow read: if isOwnerAccount();
     }
 
-    // radarState/* e o resto: só o verificador (conta de serviço) mexe.
+    // radarState/*, watchState/* e o resto: só o verificador (conta de serviço) mexe.
     match /{document=**} {
       allow read, write: if false;
     }

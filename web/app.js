@@ -46,6 +46,8 @@ const state = {
   editingId: null,
   radar: { terms: [], channels: [] },
   radarUnsubscribe: null,
+  watches: [],
+  watchesUnsubscribe: null,
   coupons: [],
   couponStore: null,
   couponsUnsubscribe: null,
@@ -101,7 +103,7 @@ auth.onAuthStateChanged((user) => {
   $('app-view').hidden = !user;
   $('user-box').hidden = !user;
   if (state.unsubscribe) state.unsubscribe();
-  for (const key of ['unsubscribe', 'radarUnsubscribe', 'couponsUnsubscribe']) {
+  for (const key of ['unsubscribe', 'radarUnsubscribe', 'couponsUnsubscribe', 'watchesUnsubscribe']) {
     if (state[key]) state[key]();
     state[key] = null;
   }
@@ -111,6 +113,7 @@ auth.onAuthStateChanged((user) => {
   $('user-photo').hidden = !user.photoURL;
   listenFavorites();
   listenRadar();
+  listenWatches();
   listenCoupons();
 });
 
@@ -278,6 +281,70 @@ $('tab-radar').addEventListener('click', async (ev) => {
     const i = Number(chanBtn.dataset.removeChannel);
     await saveRadar({ ...state.radar, channels: state.radar.channels.filter((_, j) => j !== i) }, 'Canal removido.');
   }
+});
+
+// ---------- novidades nas lojas ----------
+// Lojas cuja busca o robô sabe ler (catálogo público VTEX — checker/stores/vtex.mjs).
+const WATCH_STORES = [
+  ['copag', 'COPAG'],
+  ['americanas', 'Americanas'],
+  ['brastemp', 'Brastemp'],
+  ['consul', 'Consul'],
+  ['electrolux', 'Electrolux'],
+  ['lojasmm', 'Lojas MM'],
+];
+const watchStoreName = (id) => WATCH_STORES.find(([s]) => s === id)?.[1] || id;
+const watchesDoc = () => db.collection('settings').doc('watches');
+$('watch-store').innerHTML = WATCH_STORES.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+
+function listenWatches() {
+  state.watchesUnsubscribe = watchesDoc().onSnapshot(
+    (snap) => {
+      state.watches = snap.data()?.items || [];
+      renderWatches();
+    },
+    (err) => {
+      console.error('Erro ao ler as novidades:', err);
+      toast('Não consegui carregar as novidades nas lojas. Recarregue a página.', true);
+    },
+  );
+}
+
+async function saveWatches(items, okMessage) {
+  try {
+    await watchesDoc().set({ items, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    toast(okMessage);
+    return true;
+  } catch (err) {
+    console.error('Erro ao salvar as novidades:', err);
+    toast('Não consegui salvar. Tente de novo.', true);
+    return false;
+  }
+}
+
+function renderWatches() {
+  $('watches').innerHTML = state.watches
+    .map(
+      (w, i) =>
+        `<span class="tag">${escapeHtml(watchStoreName(w.store))} · ${escapeHtml(w.term)}<button type="button" data-remove-watch="${i}" aria-label="Remover ${escapeHtml(w.term)}">×</button></span>`,
+    )
+    .join('');
+}
+
+$('watch-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const store = $('watch-store').value;
+  const term = $('watch-term').value.replace(/\s+/g, ' ').trim();
+  if (term.length < 2) return toast('Digite o que buscar na loja.', true);
+  if (state.watches.some((w) => w.store === store && normalizeTerm(w.term) === normalizeTerm(term))) return toast('Essa busca já está na lista.', true);
+  if (await saveWatches([...state.watches, { store, term }], `Acompanhando "${term}" na ${watchStoreName(store)}.`)) $('watch-term').value = '';
+});
+
+$('watches').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-remove-watch]');
+  if (!btn) return;
+  const i = Number(btn.dataset.removeWatch);
+  await saveWatches(state.watches.filter((_, j) => j !== i), 'Busca removida.');
 });
 
 $('btn-login').addEventListener('click', async () => {

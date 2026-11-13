@@ -94,7 +94,8 @@
     .tag button:hover { color: var(--bad); }
     .inline-form { display: flex; gap: 8px; }
     .inline-form input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-size: 15px; }
-    .inline-form input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .inline-form select { border: 1px solid var(--border); background: var(--bg); color: inherit; border-radius: 10px; padding: 9px 8px; font-size: 15px; }
+    .inline-form input:focus, .inline-form select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
     .coupon-stores { margin: 12px 0 0; }
     .coupon-stores:empty::before { content: none; }
     .filter { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--muted); }
@@ -172,6 +173,18 @@
             <button class="btn btn-primary" type="submit">Adicionar</button>
           </form>
           <p class="sub">Os canais são lidos a cada 2 minutos. Canal novo começa a valer a partir dos próximos posts.</p>
+        </section>
+
+        <section class="panel radar">
+          <h2>Novidades nas lojas</h2>
+          <p class="hint">Aviso quando aparecer um produto <b>novo</b> na busca da loja ou quando um esgotado <b>voltar ao estoque</b>. Ex.: COPAG + <code>pokemon</code>.</p>
+          <div class="chips" id="watches"></div>
+          <form class="inline-form" id="watch-form" novalidate>
+            <select id="watch-store" aria-label="Loja"></select>
+            <input id="watch-term" placeholder="O que buscar na loja" maxlength="60" aria-label="Termo da busca">
+            <button class="btn btn-primary" type="submit">Adicionar</button>
+          </form>
+          <p class="sub">As lojas são consultadas a cada 10 minutos. Na primeira leitura eu só anoto o que já existe e confirmo no Telegram.</p>
         </section>
       </div>
 
