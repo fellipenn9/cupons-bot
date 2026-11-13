@@ -30,7 +30,7 @@ const run = (args, input) => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 
-const tests = spawnSync(process.execPath, ['--test', 'checker/check.test.mjs', 'checker/radar.test.mjs'], { cwd: root, stdio: 'inherit' });
+const tests = spawnSync(process.execPath, ['--test', 'checker/check.test.mjs', 'checker/radar.test.mjs', 'checker/coupons.test.mjs'], { cwd: root, stdio: 'inherit' });
 if (tests.status !== 0) {
   console.error('Testes falharam — publicação cancelada.');
   process.exit(1);

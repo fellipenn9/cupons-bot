@@ -39,7 +39,17 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 const $ = (id) => document.getElementById(id);
-const state = { user: null, favorites: [], unsubscribe: null, editingId: null, radar: { terms: [], channels: [] }, radarUnsubscribe: null };
+const state = {
+  user: null,
+  favorites: [],
+  unsubscribe: null,
+  editingId: null,
+  radar: { terms: [], channels: [] },
+  radarUnsubscribe: null,
+  coupons: [],
+  couponStore: null,
+  couponsUnsubscribe: null,
+};
 
 // ---------- utilidades ----------
 const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -91,15 +101,17 @@ auth.onAuthStateChanged((user) => {
   $('app-view').hidden = !user;
   $('user-box').hidden = !user;
   if (state.unsubscribe) state.unsubscribe();
-  if (state.radarUnsubscribe) state.radarUnsubscribe();
-  state.unsubscribe = null;
-  state.radarUnsubscribe = null;
+  for (const key of ['unsubscribe', 'radarUnsubscribe', 'couponsUnsubscribe']) {
+    if (state[key]) state[key]();
+    state[key] = null;
+  }
   if (!user) return;
   $('user-name').textContent = user.displayName || user.email;
   $('user-photo').src = user.photoURL || '';
   $('user-photo').hidden = !user.photoURL;
   listenFavorites();
   listenRadar();
+  listenCoupons();
 });
 
 // ---------- abas ----------
@@ -108,8 +120,86 @@ document.querySelectorAll('.tabs button').forEach((tab) =>
     document.querySelectorAll('.tabs button').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
     $('tab-favs').hidden = tab.dataset.tab !== 'favs';
     $('tab-radar').hidden = tab.dataset.tab !== 'radar';
+    $('tab-coupons').hidden = tab.dataset.tab !== 'coupons';
   }),
 );
+
+// ---------- cupons ----------
+function listenCoupons() {
+  state.couponsUnsubscribe = db
+    .collection('coupons')
+    .doc('recent')
+    .onSnapshot(
+      (snap) => {
+        state.coupons = (snap.data()?.items || []).map((c) => ({ ...c, lastSeen: toDate(c.lastSeen), firstSeen: toDate(c.firstSeen) }));
+        renderCoupons();
+      },
+      (err) => {
+        console.error('Erro ao ler cupons:', err);
+        $('coupon-list').innerHTML = '<p class="panel empty">Não consegui carregar os cupons. Recarregue a página.</p>';
+      },
+    );
+}
+
+function filteredCoupons() {
+  const words = normalizeTerm($('coupon-search').value).split(/\s+/).filter(Boolean);
+  return state.coupons.filter((c) => {
+    if (state.couponStore && c.store !== state.couponStore) return false;
+    const haystack = normalizeTerm(`${c.code} ${c.store} ${c.text} ${c.channel}`);
+    return words.every((w) => haystack.includes(w));
+  });
+}
+
+function renderCoupons() {
+  const stores = [...new Set(state.coupons.map((c) => c.store))].sort();
+  $('coupon-stores').innerHTML = ['', ...stores]
+    .map((s) => {
+      const count = s ? state.coupons.filter((c) => c.store === s).length : state.coupons.length;
+      return `<button type="button" class="filter" data-store="${escapeHtml(s)}" aria-pressed="${String((state.couponStore || '') === s)}">${escapeHtml(s || 'Todas')} (${count})</button>`;
+    })
+    .join('');
+
+  const list = filteredCoupons();
+  $('coupon-list').innerHTML = list.length
+    ? list
+        .map(
+          (c) => `<article class="panel coupon">
+            <div class="coupon-head">
+              <span class="code">${escapeHtml(c.code)}</span>
+              <button class="btn" type="button" data-copy="${escapeHtml(c.code)}">Copiar</button>
+              <span class="store">${escapeHtml(c.store)}</span>
+            </div>
+            <p>${escapeHtml(c.text)}</p>
+            <div class="meta">
+              <span>Visto ${timeAgo(c.lastSeen)}${c.seenCount > 1 ? ` · ${c.seenCount}× nos canais` : ''}</span>
+              <span>${escapeHtml(c.channel)}</span>
+              <a class="btn-link" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">Ver o post</a>
+            </div>
+          </article>`,
+        )
+        .join('')
+    : `<p class="panel empty">${state.coupons.length ? 'Nenhum cupom com esse filtro.' : 'Nenhum cupom ainda — eles aparecem conforme os canais postam.'}</p>`;
+}
+
+$('coupon-search').addEventListener('input', renderCoupons);
+
+$('tab-coupons').addEventListener('click', async (ev) => {
+  const filter = ev.target.closest('[data-store]');
+  if (filter) {
+    state.couponStore = filter.dataset.store || null;
+    return renderCoupons();
+  }
+  const copy = ev.target.closest('[data-copy]');
+  if (copy) {
+    try {
+      await navigator.clipboard.writeText(copy.dataset.copy);
+      toast(`Cupom ${copy.dataset.copy} copiado.`);
+    } catch (err) {
+      console.error('Erro ao copiar:', err);
+      toast('Não consegui copiar — selecione o código e copie manualmente.', true);
+    }
+  }
+});
 
 // ---------- radar ----------
 const radarDoc = () => db.collection('settings').doc('radar');

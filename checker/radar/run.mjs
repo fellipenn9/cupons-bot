@@ -7,6 +7,7 @@ import { createFirestore, getAccessToken } from '../lib/firestore.mjs';
 import { escapeHtml, sendTelegram } from '../lib/telegram.mjs';
 import { fetchChannel, fetchChannelSince } from './channel.mjs';
 import { fingerprint, matchTerms, parseTerm } from './match.mjs';
+import { couponsFromPost, extractCodes, mergeCoupons } from './coupons.mjs';
 
 // Rodando a cada 2 min, o limite raramente é atingido; ele protege o limite de 50 requisições por execução da Cloudflare.
 const MAX_SENDS_PER_RUN = 12;
@@ -16,7 +17,10 @@ const TEXT_MAX = 900;
 export function formatRadarMessage(post, channelTitle, matched) {
   let text = post.text;
   if (text.length > TEXT_MAX) text = `${text.slice(0, TEXT_MAX).trimEnd()}…`;
-  return `🎯 <b>Radar: ${escapeHtml(matched.join(', '))}</b> · ${escapeHtml(channelTitle)}\n\n${escapeHtml(text)}`;
+  // <code> no Telegram vira texto que copia com um toque.
+  const codes = extractCodes(post.text);
+  const couponLine = codes.length ? `\n🎟️ Cupom: ${codes.map((c) => `<code>${escapeHtml(c)}</code>`).join(' ou ')}` : '';
+  return `🎯 <b>Radar: ${escapeHtml(matched.join(', '))}</b> · ${escapeHtml(channelTitle)}${couponLine}\n\n${escapeHtml(text)}`;
 }
 
 // previewAll (só com dryRun): avalia os ~20 posts visíveis de cada canal, para prévia.
@@ -34,6 +38,7 @@ export async function runRadar(config, { dryRun = false, previewAll = false, log
   const state = (await db.get('radarState', 'main')) || {};
   const lastIds = { ...(state.lastIds || {}) };
   const recent = [...(state.recent || [])];
+  const foundCoupons = [];
   let sent = 0;
 
   for (const channel of channels) {
@@ -58,13 +63,16 @@ export async function runRadar(config, { dryRun = false, previewAll = false, log
     let matchedCount = 0;
     let stoppedAt = null;
     for (const post of fresh) {
+      // Todo cupom vai para a aba Cupons, mesmo de post que não bate com os termos.
+      foundCoupons.push(...couponsFromPost(post, page.title));
+
       const matched = matchTerms(post.text, terms);
-      if (!matched.length) continue;
+      if (!matched.length || stoppedAt != null) continue;
       const fp = fingerprint(post);
       if (recent.includes(fp)) continue;
       if (sent >= MAX_SENDS_PER_RUN) {
         stoppedAt = post.id;
-        break;
+        continue;
       }
       matchedCount++;
 
@@ -90,9 +98,16 @@ export async function runRadar(config, { dryRun = false, previewAll = false, log
     log(`• ${channel}: ${fresh.length} post(s) novo(s), ${matchedCount} repassado(s)`);
   }
 
-  if (!dryRun) {
+  if (dryRun) {
+    if (foundCoupons.length) log(`   [cupons] ${foundCoupons.map((c) => `${c.code} (${c.store})`).join(', ')}`);
+  } else {
     await db.set('radarState', 'main', { lastIds, recent: recent.slice(-RECENT_MAX), updatedAt: new Date() });
+    // Só escreve quando achou cupom: poupa a cota diária de gravações do Firestore.
+    if (foundCoupons.length) {
+      const stored = (await db.get('coupons', 'recent'))?.items || [];
+      await db.set('coupons', 'recent', { items: mergeCoupons(stored, foundCoupons), updatedAt: new Date() });
+    }
   }
-  log(`Radar concluído: ${sent} aviso(s).`);
+  log(`Radar concluído: ${sent} aviso(s), ${foundCoupons.length} cupom(ns) lido(s).`);
   return { sent };
 }

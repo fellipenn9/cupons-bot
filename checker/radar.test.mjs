@@ -56,6 +56,12 @@ test('repost em outro canal tem a mesma impressão digital', () => {
   assert.equal(fingerprint(a), fingerprint(b));
 });
 
+test('mensagem: cupom do post aparece no topo, copiável', () => {
+  const msg = formatRadarMessage({ text: 'Geladeira Consul\nUse o Cupom: PEGAESSA ou TOPACHADO' }, 'Promo', ['geladeira']);
+  assert.match(msg.split('\n')[1], /🎟️ Cupom: <code>PEGAESSA<\/code> ou <code>TOPACHADO<\/code>/);
+  assert.doesNotMatch(formatRadarMessage({ text: 'Geladeira sem cupom' }, 'Promo', ['geladeira']), /🎟️/);
+});
+
 test('mensagem: escapa HTML do post e corta texto longo', () => {
   const msg = formatRadarMessage({ text: '<b>oi</b> ' + 'x'.repeat(2000) }, 'Canal & Cia', ['pokemon']);
   assert.match(msg, /Radar: pokemon<\/b> · Canal &amp; Cia/);

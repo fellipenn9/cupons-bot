@@ -95,6 +95,14 @@
     .inline-form { display: flex; gap: 8px; }
     .inline-form input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-size: 15px; }
     .inline-form input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .coupon-stores { margin: 12px 0 0; }
+    .coupon-stores:empty::before { content: none; }
+    .filter { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--muted); }
+    .filter[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+    .coupon { display: grid; gap: 6px; }
+    .coupon-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    .code { font: 700 18px/1.2 ui-monospace, 'Cascadia Code', Consolas, monospace; letter-spacing: .03em; background: var(--surface-2); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 10px; }
+    .coupon p { margin: 0; color: var(--muted); font-size: 13px; }
     [hidden] { display: none !important; }
     @media (max-width: 600px) {
       .add form { grid-template-columns: 1fr 1fr; }
@@ -127,7 +135,21 @@
       <nav class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="favs" aria-selected="true">⭐ Favoritos</button>
         <button type="button" role="tab" data-tab="radar" aria-selected="false">🎯 Radar de ofertas</button>
+        <button type="button" role="tab" data-tab="coupons" aria-selected="false">🎟️ Cupons</button>
       </nav>
+
+      <div id="tab-coupons" hidden>
+        <section class="panel radar">
+          <h2>Cupons disponíveis</h2>
+          <p class="hint">Todo código de cupom que apareceu nos seus canais nos últimos 7 dias — de qualquer produto. Na hora de comprar, filtre pela loja ou busque pelo produto.
+            Cupom costuma expirar rápido: os mais recentes vêm primeiro.</p>
+          <div class="inline-form">
+            <input id="coupon-search" type="search" placeholder="Buscar: geladeira, pokemon, notebook…" aria-label="Buscar cupom">
+          </div>
+          <div class="chips coupon-stores" id="coupon-stores" role="group" aria-label="Filtrar por loja"></div>
+        </section>
+        <div class="list" id="coupon-list" aria-live="polite"></div>
+      </div>
 
       <div id="tab-radar" hidden>
         <section class="panel radar">
