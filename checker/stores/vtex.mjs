@@ -80,8 +80,9 @@ function createVtexStore({ id, name, host }) {
     },
 
     async search(term, limit = 20) {
-      const qs = new URLSearchParams({ ft: term, _from: '0', _to: String(limit - 1) });
-      const list = await getJson(`${base}/api/catalog_system/pub/products/search?${qs}`);
+      // A VTEX recusa (400) o espaço codificado como "+"; precisa ir como %20.
+      const ft = encodeURIComponent(term.trim());
+      const list = await getJson(`${base}/api/catalog_system/pub/products/search?ft=${ft}&_from=0&_to=${limit - 1}`);
       return list.map((p) => ({ store: id, url: p.link, productKey: `${id}:${p.linkText}`, ...parseVtexProduct(p) }));
     },
   };

@@ -103,6 +103,17 @@
     .coupon { display: grid; gap: 6px; }
     .coupon-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
     .code { font: 700 18px/1.2 ui-monospace, 'Cascadia Code', Consolas, monospace; letter-spacing: .03em; background: var(--surface-2); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 10px; }
+    .tabs { flex-wrap: wrap; }
+    .result { display: grid; grid-template-columns: auto 64px 1fr; gap: 12px; align-items: start; }
+    .result.dim { opacity: .55; }
+    .result input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
+    .result .thumb { width: 64px; height: 64px; }
+    .badge { display: inline-block; font-size: 11px; border-radius: 999px; padding: 1px 8px; background: var(--surface-2); color: var(--muted); }
+    .badge.best { background: var(--good-bg); color: var(--good); font-weight: 600; }
+    .selection-bar { position: sticky; bottom: 12px; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-top: 12px; border-color: var(--accent); }
+    .selection-bar .field { flex: 1 1 140px; }
+    .search-errors { margin: 8px 0 0; color: var(--warn); font-size: 13px; }
+    .group { font-size: 12px; color: var(--muted); }
     .coupon p { margin: 0; color: var(--muted); font-size: 13px; }
     [hidden] { display: none !important; }
     @media (max-width: 600px) {
@@ -135,6 +146,7 @@
     <main id="app-view" hidden>
       <nav class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="favs" aria-selected="true">⭐ Favoritos</button>
+        <button type="button" role="tab" data-tab="search" aria-selected="false">🔎 Buscar</button>
         <button type="button" role="tab" data-tab="radar" aria-selected="false">🎯 Radar de ofertas</button>
         <button type="button" role="tab" data-tab="coupons" aria-selected="false">🎟️ Cupons</button>
       </nav>
@@ -150,6 +162,39 @@
           <div class="chips coupon-stores" id="coupon-stores" role="group" aria-label="Filtrar por loja"></div>
         </section>
         <div class="list" id="coupon-list" aria-live="polite"></div>
+      </div>
+
+      <div id="tab-search" hidden>
+        <section class="panel radar">
+          <h2>Comparar preços</h2>
+          <p class="hint">Busca ao mesmo tempo em <span id="search-stores"></span>. Use <code>-palavra</code> para tirar o que não interessa: <code>notebook -mochila -mesa</code>.</p>
+          <form class="inline-form" id="search-form" novalidate>
+            <input id="search-input" type="search" placeholder="Ex.: geladeira frost free, nintendo switch oled" maxlength="80" aria-label="O que você procura">
+            <button class="btn btn-primary" id="btn-search" type="submit">Buscar</button>
+          </form>
+          <label class="sub"><input type="checkbox" id="search-only-relevant" checked> Esconder acessórios e outros produtos</label>
+          <p class="search-errors" id="search-errors" hidden></p>
+        </section>
+
+        <div class="list-head" id="search-head" hidden>
+          <h2 id="search-title"></h2>
+          <small id="search-info"></small>
+        </div>
+        <div class="list" id="search-results" aria-live="polite"></div>
+
+        <form class="panel selection-bar" id="search-actions" hidden novalidate>
+          <label class="field">Pagaria até (R$)
+            <input id="search-target" inputmode="decimal" placeholder="Ex.: 2.500,00">
+          </label>
+          <button class="btn btn-primary" type="submit" id="btn-follow" data-mode="follow">⭐ Acompanhar marcados</button>
+          <button class="btn" type="submit" data-mode="alert">🔔 Avisar quando qualquer loja tiver</button>
+        </form>
+
+        <div class="list-head">
+          <h2>Alertas por busca</h2>
+          <small>conferidos a cada 30 minutos</small>
+        </div>
+        <div class="list" id="search-alerts"></div>
       </div>
 
       <div id="tab-radar" hidden>

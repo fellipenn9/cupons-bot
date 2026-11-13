@@ -44,6 +44,10 @@ const state = {
   favorites: [],
   unsubscribe: null,
   editingId: null,
+  editingKind: 'favorites',
+  search: { term: '', results: [], errors: [], selected: new Set(), loading: false },
+  searchAlerts: [],
+  searchAlertsUnsubscribe: null,
   radar: { terms: [], channels: [] },
   radarUnsubscribe: null,
   watches: [],
@@ -103,7 +107,7 @@ auth.onAuthStateChanged((user) => {
   $('app-view').hidden = !user;
   $('user-box').hidden = !user;
   if (state.unsubscribe) state.unsubscribe();
-  for (const key of ['unsubscribe', 'radarUnsubscribe', 'couponsUnsubscribe', 'watchesUnsubscribe']) {
+  for (const key of ['unsubscribe', 'radarUnsubscribe', 'couponsUnsubscribe', 'watchesUnsubscribe', 'searchAlertsUnsubscribe']) {
     if (state[key]) state[key]();
     state[key] = null;
   }
@@ -115,6 +119,7 @@ auth.onAuthStateChanged((user) => {
   listenRadar();
   listenWatches();
   listenCoupons();
+  listenSearchAlerts();
 });
 
 // ---------- abas ----------
@@ -123,6 +128,7 @@ document.querySelectorAll('.tabs button').forEach((tab) =>
     document.querySelectorAll('.tabs button').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
     $('tab-favs').hidden = tab.dataset.tab !== 'favs';
     $('tab-radar').hidden = tab.dataset.tab !== 'radar';
+    $('tab-search').hidden = tab.dataset.tab !== 'search';
     $('tab-coupons').hidden = tab.dataset.tab !== 'coupons';
   }),
 );
@@ -369,6 +375,7 @@ function listenFavorites() {
       (snap) => {
         state.favorites = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         render();
+        if (state.search.term) renderSearch();
       },
       (err) => {
         console.error('Erro ao ler favoritos:', err);
@@ -427,6 +434,7 @@ $('list').addEventListener('click', async (ev) => {
 
   if (btn.dataset.action === 'edit') {
     state.editingId = fav.id;
+    state.editingKind = 'favorites';
     $('target-input').value = fav.targetPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     $('target-dialog').showModal();
   }
@@ -449,11 +457,230 @@ $('target-dialog').addEventListener('close', async () => {
   const target = parseBRL($('target-input').value);
   if (target == null) return toast('Valor inválido. Use algo como 899,90.', true);
   try {
-    await db.collection('favorites').doc(id).update({ targetPrice: target });
+    await db.collection(state.editingKind).doc(id).update({ targetPrice: target });
     toast('Meta atualizada.');
   } catch (err) {
     console.error('Erro ao alterar meta:', err);
     toast('Não consegui alterar a meta. Tente de novo.', true);
+  }
+});
+
+// ---------- busca em várias lojas ----------
+$('search-stores').textContent = STORES.map((s) => s.name).join(', ');
+const storeName = (id) => STORES.find((s) => s.id === id)?.name || id;
+
+$('search-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const term = $('search-input').value.replace(/\s+/g, ' ').trim();
+  if (term.length < 2) return toast('Digite o que você procura.', true);
+  state.search = { term, results: [], errors: [], selected: new Set(), loading: true };
+  renderSearch();
+  $('btn-search').disabled = true;
+  try {
+    const token = await state.user.getIdToken();
+    const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { headers: { authorization: `Bearer ${token}` } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Erro ${res.status}`);
+    state.search.results = body.results || [];
+    state.search.errors = body.errors || [];
+  } catch (err) {
+    console.error('Erro na busca:', err);
+    toast(`A busca falhou: ${err.message}`, true);
+  } finally {
+    state.search.loading = false;
+    $('btn-search').disabled = false;
+    renderSearch();
+  }
+});
+
+$('search-only-relevant').addEventListener('change', renderSearch);
+
+function visibleResults() {
+  const onlyRelevant = $('search-only-relevant').checked;
+  return state.search.results.filter((r) => !onlyRelevant || (r.relevant && r.available));
+}
+
+function resultHtml(r, isBest) {
+  const fav = state.favorites.some((f) => f.productKey === r.productKey);
+  const checked = state.search.selected.has(r.productKey);
+  const price = r.available
+    ? `<span class="price">${brl(r.price)}</span> <span class="sub">à vista${r.priceCard ? ` · ${brl(r.priceCard)} cartão` : ''}${r.listPrice ? ` · <s>${brl(r.listPrice)}</s>` : ''}</span>`
+    : '<span class="sub">Sem estoque</span>';
+  return `<article class="panel result${r.relevant && r.available ? '' : ' dim'}">
+    <input type="checkbox" data-select="${escapeHtml(r.productKey)}" ${checked ? 'checked' : ''} ${fav || !r.available ? 'disabled' : ''} aria-label="Marcar ${escapeHtml(r.title)}">
+    <div class="thumb" ${r.image ? `style="background-image:url('${escapeHtml(r.image)}')"` : ''} role="img" aria-label=""></div>
+    <div>
+      <div class="card-top">
+        <h3>${escapeHtml(r.title)}</h3>
+        <span class="store">${escapeHtml(r.storeName || storeName(r.store))}</span>
+      </div>
+      <div class="prices">${price}</div>
+      <div class="meta">
+        ${isBest ? '<span class="badge best">Mais barato</span>' : ''}
+        ${fav ? '<span class="badge">Já nos favoritos</span>' : ''}
+        ${r.relevant ? '' : '<span class="badge">Parece acessório ou outro produto</span>'}
+        ${r.seller ? `<span>Vendido por ${escapeHtml(r.seller)}</span>` : ''}
+        <a class="btn-link" href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">Abrir na loja</a>
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderSearch() {
+  const { term, loading, errors, selected } = state.search;
+  $('search-head').hidden = !term;
+  $('search-title').textContent = term ? `Resultados para "${term}"` : '';
+  if (loading) {
+    $('search-info').textContent = '';
+    $('search-results').innerHTML = '<p class="empty">Buscando nas lojas…</p>';
+    $('search-actions').hidden = true;
+    $('search-errors').hidden = true;
+    return;
+  }
+  const list = visibleResults();
+  const hidden = state.search.results.length - list.length;
+  $('search-info').textContent = term ? `${list.length} resultado(s)${hidden ? ` · ${hidden} escondido(s)` : ''}` : '';
+  const bestKey = list.find((r) => r.relevant && r.available)?.productKey;
+  $('search-results').innerHTML = !term
+    ? ''
+    : list.length
+      ? list.map((r) => resultHtml(r, r.productKey === bestKey)).join('')
+      : '<p class="panel empty">Nada encontrado. Tente outras palavras ou desmarque "Esconder acessórios".</p>';
+  $('search-errors').hidden = !errors.length;
+  $('search-errors').textContent = errors.length ? `⚠️ Não consegui consultar: ${errors.map((e) => e.storeName).join(', ')}.` : '';
+  $('search-actions').hidden = !term;
+  $('btn-follow').textContent = selected.size ? `⭐ Acompanhar ${selected.size} marcado(s)` : '⭐ Acompanhar marcados';
+}
+
+$('search-results').addEventListener('change', (ev) => {
+  const box = ev.target.closest('[data-select]');
+  if (!box) return;
+  if (box.checked) state.search.selected.add(box.dataset.select);
+  else state.search.selected.delete(box.dataset.select);
+  renderSearch();
+});
+
+$('search-actions').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const mode = ev.submitter?.dataset.mode;
+  const target = parseBRL($('search-target').value);
+  if (target == null) return toast('Informe o preço que você pagaria, ex.: 2.500,00.', true);
+  const { term, results, selected } = state.search;
+
+  if (mode === 'alert') {
+    if (state.searchAlerts.some((a) => normalizeTerm(a.term) === normalizeTerm(term))) {
+      return toast('Já existe um alerta para essa busca — altere a meta dele abaixo.', true);
+    }
+    try {
+      await db.collection('searchAlerts').add({ uid: state.user.uid, term, targetPrice: target, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast(`Alerta criado. Confiro "${term}" em todas as lojas ${CHECK_INTERVAL_TEXT}.`);
+    } catch (err) {
+      console.error('Erro ao criar alerta:', err);
+      toast('Não consegui criar o alerta. Tente de novo.', true);
+    }
+    return;
+  }
+
+  const chosen = results.filter((r) => selected.has(r.productKey));
+  if (!chosen.length) return toast('Marque os produtos que quer acompanhar.', true);
+  // Vários marcados viram um grupo com a mesma meta; cada um continua sendo conferido na sua loja.
+  const group = chosen.length > 1 ? term : null;
+  let saved = 0;
+  for (const r of chosen) {
+    try {
+      await db.collection('favorites').add({
+        uid: state.user.uid,
+        url: r.url,
+        store: r.store,
+        productKey: r.productKey,
+        targetPrice: target,
+        ...(group && { group }),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      saved++;
+    } catch (err) {
+      console.error('Erro ao salvar favorito:', err);
+    }
+  }
+  state.search.selected = new Set();
+  renderSearch();
+  if (saved === chosen.length) toast(`${saved} produto(s) nos favoritos com meta ${brl(target)}.`);
+  else toast(`Salvei ${saved} de ${chosen.length}. Tente de novo os que faltaram.`, true);
+});
+
+// ---------- alertas por busca ----------
+function listenSearchAlerts() {
+  state.searchAlertsUnsubscribe = db
+    .collection('searchAlerts')
+    .where('uid', '==', state.user.uid)
+    .onSnapshot(
+      (snap) => {
+        state.searchAlerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        renderSearchAlerts();
+      },
+      (err) => {
+        console.error('Erro ao ler alertas por busca:', err);
+        $('search-alerts').innerHTML = '<p class="panel empty">Não consegui carregar os alertas. Recarregue a página.</p>';
+      },
+    );
+}
+
+function searchAlertHtml(a) {
+  const checked = toDate(a.checkedAt);
+  let best;
+  if (a.best) {
+    best = `<div class="prices"><span class="price">${brl(a.best.price)}</span> <span class="sub">na ${escapeHtml(a.best.storeName)} · <a href="${escapeHtml(a.best.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.best.title)}</a></span></div>`;
+  } else if (checked) {
+    best = '<span class="sub">Nenhuma loja tem agora.</span>';
+  } else {
+    best = `<span class="status wait">Aguardando a 1ª busca (${CHECK_INTERVAL_TEXT})</span>`;
+  }
+  let status = '';
+  if (a.best) {
+    status = a.best.price <= a.targetPrice ? '<span class="status ok">🎯 Na sua meta!</span>' : `<span class="status gap">Faltam ${brl(a.best.price - a.targetPrice)}</span>`;
+  }
+  return `<article class="panel">
+    <div class="card-top"><h3>🔔 ${escapeHtml(a.term)}</h3><span class="store">meta ${brl(a.targetPrice)}</span></div>
+    ${best}
+    ${status}
+    <div class="meta">
+      ${checked ? `<span>Conferido ${timeAgo(checked)}</span>` : ''}
+      ${a.lastError ? `<span>⚠️ ${escapeHtml(a.lastError)}</span>` : ''}
+    </div>
+    <div class="actions">
+      <button class="btn-link" type="button" data-alert-action="edit" data-id="${a.id}">Alterar meta</button>
+      <button class="btn-link" type="button" data-alert-action="remove" data-id="${a.id}">Remover</button>
+    </div>
+  </article>`;
+}
+
+function renderSearchAlerts() {
+  const alerts = [...state.searchAlerts].sort((a, b) => a.term.localeCompare(b.term));
+  $('search-alerts').innerHTML = alerts.length
+    ? alerts.map(searchAlertHtml).join('')
+    : '<p class="panel empty">Nenhum ainda. Busque um produto acima e use "Avisar quando qualquer loja tiver".</p>';
+}
+
+$('search-alerts').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-alert-action]');
+  if (!btn) return;
+  const alert = state.searchAlerts.find((a) => a.id === btn.dataset.id);
+  if (!alert) return;
+  if (btn.dataset.alertAction === 'edit') {
+    state.editingId = alert.id;
+    state.editingKind = 'searchAlerts';
+    $('target-input').value = alert.targetPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    $('target-dialog').showModal();
+  }
+  if (btn.dataset.alertAction === 'remove') {
+    if (!confirm(`Remover o alerta "${alert.term}"?`)) return;
+    try {
+      await db.collection('searchAlerts').doc(alert.id).delete();
+      toast('Alerta removido.');
+    } catch (err) {
+      console.error('Erro ao remover alerta:', err);
+      toast('Não consegui remover. Tente de novo.', true);
+    }
   }
 });
 
@@ -504,6 +731,7 @@ function cardHtml(f) {
         <h3>${escapeHtml(f.title || f.url)}</h3>
         <span class="store">${escapeHtml(store)}</span>
       </div>
+      ${f.group ? `<div class="group">Grupo: ${escapeHtml(f.group)}</div>` : ''}
       ${prices}
       <span class="status ${st.cls}">${escapeHtml(st.text)}</span>
       <div class="meta">

@@ -1,6 +1,6 @@
 // Regras do Firestore — Caçador de Ofertas (projeto cupons-bot).
 // A apiKey do site é pública por design; quem protege os dados são estas regras.
-// O verificador (GitHub Actions) usa a conta de serviço, que não passa por elas.
+// Os robôs (Cloudflare Workers) usam a conta de serviço, que não passa por elas.
 //
 // Modelo: favorites/{id} = { uid, url, store, productKey, targetPrice, createdAt,
 //   + campos gravados só pelo verificador: title, image, price, history, ... }
@@ -26,7 +26,8 @@ service cloud.firestore {
       // O site só cria com os campos do formulário; preço e histórico são do verificador.
       allow create: if isOwnerAccount()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'url', 'store', 'productKey', 'targetPrice', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'url', 'store', 'productKey', 'targetPrice', 'createdAt', 'group'])
+        && (!('group' in request.resource.data) || (request.resource.data.group is string && request.resource.data.group.size() <= 80))
         && request.resource.data.url is string
         && request.resource.data.url.size() < 600
         && request.resource.data.url.matches('https://.*')
@@ -34,6 +35,23 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
 
       // Pelo site, só dá pra mudar a meta.
+      allow update: if isOwnerAccount()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['targetPrice'])
+        && validTarget(request.resource.data.targetPrice);
+    }
+
+    // Alertas por busca: o site cria { uid, term, targetPrice, createdAt } e só muda a meta;
+    // melhor preço e avisados são do robô.
+    match /searchAlerts/{alertId} {
+      allow read, delete: if isOwnerAccount() && resource.data.uid == request.auth.uid;
+      allow create: if isOwnerAccount()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'term', 'targetPrice', 'createdAt'])
+        && request.resource.data.term is string
+        && request.resource.data.term.size() >= 2 && request.resource.data.term.size() <= 80
+        && validTarget(request.resource.data.targetPrice)
+        && request.resource.data.createdAt == request.time;
       allow update: if isOwnerAccount()
         && resource.data.uid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['targetPrice'])

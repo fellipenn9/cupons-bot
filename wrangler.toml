@@ -11,7 +11,7 @@ directory = "./web"
 
 # Manter igual a RADAR_CRON e CHECK_CRON em worker/index.mjs.
 [triggers]
-crons = ["*/2 * * * *", "5,35 * * * *", "1-59/10 * * * *"]
+crons = ["*/2 * * * *", "5,35 * * * *", "1-59/10 * * * *", "15,45 * * * *"]
 
 [observability]
 enabled = true

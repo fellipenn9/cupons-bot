@@ -1,4 +1,7 @@
-import { fetchHtml, findJsonLdProduct, findObjectWithKey, toNumber } from '../lib/http.mjs';
+import { USER_AGENT, fetchHtml, findJsonLdProduct, findObjectWithKey, toNumber } from '../lib/http.mjs';
+
+// Busca: a mesma API pública de catálogo que o site da KaBuM usa na página de busca.
+const SEARCH_API = 'https://servicespub.prod.api.aws.grupokabum.com.br/catalog/v2/products';
 
 const PRODUCT_RE = /kabum\.com\.br\/produto\/(\d+)/i;
 
@@ -16,7 +19,36 @@ export const kabum = {
     // URL canônica: o slug do produto muda às vezes, o número não.
     return parseKabum(await fetchHtml(`https://www.kabum.com.br/produto/${id}`));
   },
+
+  async search(term, limit = 20) {
+    const qs = new URLSearchParams({ query: term, page_size: String(limit) });
+    const res = await fetch(`${SEARCH_API}?${qs}`, {
+      headers: { 'user-agent': USER_AGENT, accept: 'application/json' },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`KaBuM respondeu ${res.status}`);
+    return ((await res.json()).data || []).map(parseKabumSearchItem);
+  },
 };
+
+export function parseKabumSearchItem(item) {
+  const a = item.attributes || {};
+  const card = toNumber(a.offer?.price) ?? toNumber(a.price);
+  const cash = toNumber(a.offer?.price_with_discount) ?? toNumber(a.price_with_discount) ?? card;
+  const old = toNumber(a.old_price);
+  return {
+    store: 'kabum',
+    url: `https://www.kabum.com.br/produto/${item.id}`,
+    productKey: `kabum:${item.id}`,
+    title: a.title || null,
+    image: a.photos?.g?.[0] || a.photos?.p?.[0] || null,
+    price: cash,
+    priceCard: card > cash ? card : null,
+    listPrice: old > (card ?? 0) ? old : null,
+    available: Boolean(a.available) && cash > 0,
+    seller: a.marketplace?.seller_name || null,
+  };
+}
 
 export function parseKabum(html) {
   const ld = findJsonLdProduct(html);

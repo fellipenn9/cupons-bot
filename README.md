@@ -11,6 +11,8 @@ Tudo roda na Cloudflare (Worker `cupons-bot`, plano gratuito):
 | Verificador de preços | `checker/run-check.mjs` | cron `5,35 * * * *` (a cada 30 min) |
 | Radar de ofertas (canais do Telegram) | `checker/radar/run.mjs` | cron `*/2 * * * *` (a cada 2 min) |
 | Novidades nas lojas (produto novo / voltou ao estoque) | `checker/watch/run.mjs` | cron `1-59/10 * * * *` (a cada 10 min) |
+| Busca em várias lojas (site → `/api/search`, só com login do dono) | `checker/search/multi.mjs` + `worker/auth.mjs` | na hora |
+| Alertas por busca (termo + meta em todas as lojas) | `checker/search/alerts.mjs` | cron `15,45 * * * *` (a cada 30 min) |
 | Entrada do Worker | `worker/index.mjs` + `wrangler.toml` | — |
 | Regras do Firestore | `firestore.rules` | `node tools/deploy-rules.mjs` |
 
@@ -36,13 +38,14 @@ com o User-Agent do projeto) — loja que bloqueia robô não é contornada.
 ## Comandos
 
 ```bash
-node --test checker/check.test.mjs checker/radar.test.mjs checker/coupons.test.mjs checker/watch.test.mjs   # testes
+node --test checker/check.test.mjs checker/radar.test.mjs checker/coupons.test.mjs checker/watch.test.mjs checker/search.test.mjs   # testes
 node checker/try-url.mjs <link>                 # testa a leitura de um produto
 node checker/check.mjs --dry-run                # simula a rodada (não grava, não avisa)
 node checker/check.mjs                          # rodada real
 node checker/radar.mjs --dry-run --all          # prévia do radar nos ~20 últimos posts de cada canal
 node checker/radar.mjs                          # rodada real do radar
 node checker/watch.mjs --dry-run                # novidades nas lojas, sem enviar nem gravar
+node checker/search-alerts.mjs --dry-run        # alertas por busca, sem enviar nem gravar
 node tools/deploy-rules.mjs                     # publica as regras do Firestore
 ```
 
