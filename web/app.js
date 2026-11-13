@@ -39,7 +39,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 const $ = (id) => document.getElementById(id);
-const state = { user: null, favorites: [], unsubscribe: null, editingId: null };
+const state = { user: null, favorites: [], unsubscribe: null, editingId: null, radar: { terms: [], channels: [] }, radarUnsubscribe: null };
 
 // ---------- utilidades ----------
 const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -91,12 +91,103 @@ auth.onAuthStateChanged((user) => {
   $('app-view').hidden = !user;
   $('user-box').hidden = !user;
   if (state.unsubscribe) state.unsubscribe();
+  if (state.radarUnsubscribe) state.radarUnsubscribe();
   state.unsubscribe = null;
+  state.radarUnsubscribe = null;
   if (!user) return;
   $('user-name').textContent = user.displayName || user.email;
   $('user-photo').src = user.photoURL || '';
   $('user-photo').hidden = !user.photoURL;
   listenFavorites();
+  listenRadar();
+});
+
+// ---------- abas ----------
+document.querySelectorAll('.tabs button').forEach((tab) =>
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+    $('tab-favs').hidden = tab.dataset.tab !== 'favs';
+    $('tab-radar').hidden = tab.dataset.tab !== 'radar';
+  }),
+);
+
+// ---------- radar ----------
+const radarDoc = () => db.collection('settings').doc('radar');
+const normalizeTerm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+function listenRadar() {
+  state.radarUnsubscribe = radarDoc().onSnapshot(
+    (snap) => {
+      const data = snap.data() || {};
+      state.radar = { terms: data.terms || [], channels: data.channels || [] };
+      renderRadar();
+    },
+    (err) => {
+      console.error('Erro ao ler o radar:', err);
+      toast('Não consegui carregar o Radar. Recarregue a página.', true);
+    },
+  );
+}
+
+async function saveRadar(next, okMessage) {
+  try {
+    await radarDoc().set({ terms: next.terms, channels: next.channels, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    toast(okMessage);
+    return true;
+  } catch (err) {
+    console.error('Erro ao salvar o radar:', err);
+    toast('Não consegui salvar. Tente de novo.', true);
+    return false;
+  }
+}
+
+function parseChannel(input) {
+  const raw = input.trim().replace(/^@/, '');
+  const m = raw.match(/^(?:https?:\/\/)?(?:www\.)?(?:t|telegram)\.me\/(?:s\/)?([A-Za-z0-9_]+)/i);
+  const name = m ? m[1] : raw;
+  return /^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(name) ? name : null;
+}
+
+function renderRadar() {
+  $('terms').innerHTML = state.radar.terms
+    .map((t, i) => `<span class="tag">${escapeHtml(t)}<button type="button" data-remove-term="${i}" aria-label="Remover ${escapeHtml(t)}">×</button></span>`)
+    .join('');
+  $('channels').innerHTML = state.radar.channels
+    .map(
+      (c, i) =>
+        `<span class="tag"><a href="https://t.me/${escapeHtml(c)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(c)}</a><button type="button" data-remove-channel="${i}" aria-label="Remover ${escapeHtml(c)}">×</button></span>`,
+    )
+    .join('');
+}
+
+$('term-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const term = $('term-input').value.replace(/\s+/g, ' ').trim();
+  if (!/[a-z0-9]/i.test(normalizeTerm(term).replace(/-\S+/g, ''))) return toast('Digite pelo menos uma palavra que precisa aparecer.', true);
+  if (state.radar.terms.some((t) => normalizeTerm(t) === normalizeTerm(term))) return toast('Esse termo já está na lista.', true);
+  if (await saveRadar({ ...state.radar, terms: [...state.radar.terms, term] }, `Termo "${term}" adicionado.`)) $('term-input').value = '';
+});
+
+$('channel-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const name = parseChannel($('channel-input').value);
+  if (!name) return toast('Não reconheci o canal. Cole o link t.me/… ou o @ do canal.', true);
+  if (/bot$/i.test(name)) return toast('Isso é um bot, não um canal — bots não têm página pública para ler.', true);
+  if (state.radar.channels.some((c) => c.toLowerCase() === name.toLowerCase())) return toast('Esse canal já está na lista.', true);
+  if (await saveRadar({ ...state.radar, channels: [...state.radar.channels, name] }, `Canal @${name} adicionado.`)) $('channel-input').value = '';
+});
+
+$('tab-radar').addEventListener('click', async (ev) => {
+  const termBtn = ev.target.closest('[data-remove-term]');
+  const chanBtn = ev.target.closest('[data-remove-channel]');
+  if (termBtn) {
+    const i = Number(termBtn.dataset.removeTerm);
+    await saveRadar({ ...state.radar, terms: state.radar.terms.filter((_, j) => j !== i) }, 'Termo removido.');
+  }
+  if (chanBtn) {
+    const i = Number(chanBtn.dataset.removeChannel);
+    await saveRadar({ ...state.radar, channels: state.radar.channels.filter((_, j) => j !== i) }, 'Canal removido.');
+  }
 });
 
 $('btn-login').addEventListener('click', async () => {

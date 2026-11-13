@@ -80,6 +80,13 @@ export function createFirestore(serviceAccount, token) {
       return docs;
     },
 
+    async get(collection, id) {
+      const res = await fetch(`${base}/${collection}/${id}`, { headers });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`Firestore GET ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      return decodeFields((await res.json()).fields);
+    },
+
     // Atualiza só os campos informados e falha se o documento foi apagado nesse meio-tempo.
     async update(collection, id, data) {
       const qs = new URLSearchParams({ 'currentDocument.exists': 'true' });

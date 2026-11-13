@@ -6,7 +6,8 @@ a cada 2 horas e avisa no Telegram quando o preço chega na meta.
 | Parte | Onde | Roda em |
 |---|---|---|
 | Site (favoritos, metas, histórico) | `web/` | GitHub Pages + Firebase (login Google, Firestore) |
-| Verificador | `checker/` | GitHub Actions, a cada 2 h (`.github/workflows/verificar-precos.yml`) |
+| Verificador de preços | `checker/check.mjs` | GitHub Actions, a cada 2 h (`verificar-precos.yml`) |
+| Radar de ofertas (canais do Telegram) | `checker/radar.mjs` | GitHub Actions, a cada 15 min (`radar.yml`) |
 | Regras de segurança | `firestore.rules` | publicar com `node tools/deploy-rules.mjs` |
 
 ## Lojas
@@ -31,6 +32,8 @@ node --test checker/check.test.mjs              # testes
 node checker/try-url.mjs <link>                 # testa a leitura de um produto
 node checker/check.mjs --dry-run                # simula a rodada (não grava, não avisa)
 node checker/check.mjs                          # rodada real
+node checker/radar.mjs --dry-run --all          # prévia do radar nos ~20 últimos posts de cada canal
+node checker/radar.mjs                          # rodada real do radar
 node tools/deploy-rules.mjs                     # publica as regras do Firestore
 ```
 

@@ -40,6 +40,16 @@ service cloud.firestore {
         && validTarget(request.resource.data.targetPrice);
     }
 
+    // Termos e canais do Radar, editados pelo site.
+    match /settings/radar {
+      allow read: if isOwnerAccount();
+      allow write: if isOwnerAccount()
+        && request.resource.data.keys().hasOnly(['terms', 'channels', 'updatedAt'])
+        && request.resource.data.terms is list && request.resource.data.terms.size() <= 60
+        && request.resource.data.channels is list && request.resource.data.channels.size() <= 40;
+    }
+
+    // radarState/* e o resto: só o verificador (conta de serviço) mexe.
     match /{document=**} {
       allow read, write: if false;
     }

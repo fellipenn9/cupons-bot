@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: 22
       - name: Testes
-        run: node --test checker/check.test.mjs
+        run: node --test checker/check.test.mjs checker/radar.test.mjs
       - name: Verificar preços e avisar no Telegram
         run: node checker/check.mjs
         env:

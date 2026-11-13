@@ -79,6 +79,22 @@
     dialog::backdrop { background: rgba(0, 0, 0, .45); }
     dialog h3 { margin: 0 0 12px; font-size: 16px; }
     dialog .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .tabs button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 7px 16px; cursor: pointer; color: var(--muted); }
+    .tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+    .radar { margin-bottom: 12px; }
+    .radar h2 { margin: 0 0 4px; font-size: 16px; }
+    .radar .hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    code { background: var(--surface-2); border-radius: 5px; padding: 1px 5px; font-size: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .chips:empty::before { content: 'Nenhum ainda.'; color: var(--muted); font-size: 13px; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 14px; }
+    .tag a { text-decoration: none; }
+    .tag button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 16px; line-height: 1; padding: 0 4px; border-radius: 50%; }
+    .tag button:hover { color: var(--bad); }
+    .inline-form { display: flex; gap: 8px; }
+    .inline-form input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-size: 15px; }
+    .inline-form input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
     [hidden] { display: none !important; }
     @media (max-width: 600px) {
       .add form { grid-template-columns: 1fr 1fr; }
@@ -108,6 +124,36 @@
     </section>
 
     <main id="app-view" hidden>
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="favs" aria-selected="true">⭐ Favoritos</button>
+        <button type="button" role="tab" data-tab="radar" aria-selected="false">🎯 Radar de ofertas</button>
+      </nav>
+
+      <div id="tab-radar" hidden>
+        <section class="panel radar">
+          <h2>Termos que me interessam</h2>
+          <p class="hint">Aviso no Telegram quando um post dos canais tiver <b>todas</b> as palavras do termo (sem ligar pra acento ou maiúscula).
+            Use <code>-palavra</code> para excluir: <code>nintendo -sorteio</code>.</p>
+          <div class="chips" id="terms"></div>
+          <form class="inline-form" id="term-form" novalidate>
+            <input id="term-input" placeholder="Ex.: pokemon tcg, geladeira frost free, cupom amazon" maxlength="80" aria-label="Novo termo">
+            <button class="btn btn-primary" type="submit">Adicionar</button>
+          </form>
+        </section>
+
+        <section class="panel radar">
+          <h2>Canais que eu acompanho</h2>
+          <p class="hint">Só canais <b>públicos</b> do Telegram (com @). Cole o link <code>t.me/…</code> ou o @. Grupos, canais privados e bots não funcionam.</p>
+          <div class="chips" id="channels"></div>
+          <form class="inline-form" id="channel-form" novalidate>
+            <input id="channel-input" placeholder="https://t.me/nomedocanal" aria-label="Novo canal">
+            <button class="btn btn-primary" type="submit">Adicionar</button>
+          </form>
+          <p class="sub">Os canais são lidos a cada ~15 minutos. Canal novo começa a valer a partir dos próximos posts.</p>
+        </section>
+      </div>
+
+      <div id="tab-favs">
       <section class="panel add">
         <h2>Novo favorito</h2>
         <p class="hint">Cole o link da página do produto e o preço que você topa pagar (à vista).</p>
@@ -128,6 +174,7 @@
         <small id="list-info"></small>
       </div>
       <div class="list" id="list" aria-live="polite"></div>
+      </div>
     </main>
   </div>
 
