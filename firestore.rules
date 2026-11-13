@@ -1,0 +1,47 @@
+// Regras do Firestore — Caçador de Ofertas (projeto cupons-bot).
+// A apiKey do site é pública por design; quem protege os dados são estas regras.
+// O verificador (GitHub Actions) usa a conta de serviço, que não passa por elas.
+//
+// Modelo: favorites/{id} = { uid, url, store, productKey, targetPrice, createdAt,
+//   + campos gravados só pelo verificador: title, image, price, history, ... }
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Uso pessoal: só esta conta Google entra.
+    function isOwnerAccount() {
+      return request.auth != null
+        && request.auth.token.email == 'fellipenn9@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function validTarget(v) {
+      return v is number && v > 0 && v < 1000000;
+    }
+
+    match /favorites/{favId} {
+      allow read, delete: if isOwnerAccount() && resource.data.uid == request.auth.uid;
+
+      // O site só cria com os campos do formulário; preço e histórico são do verificador.
+      allow create: if isOwnerAccount()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'url', 'store', 'productKey', 'targetPrice', 'createdAt'])
+        && request.resource.data.url is string
+        && request.resource.data.url.size() < 600
+        && request.resource.data.url.matches('https://.*')
+        && validTarget(request.resource.data.targetPrice)
+        && request.resource.data.createdAt == request.time;
+
+      // Pelo site, só dá pra mudar a meta.
+      allow update: if isOwnerAccount()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['targetPrice'])
+        && validTarget(request.resource.data.targetPrice);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

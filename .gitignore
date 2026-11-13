@@ -1,0 +1,4 @@
+# Credenciais: nunca vão para o GitHub
+.env
+segredos/
+node_modules/
